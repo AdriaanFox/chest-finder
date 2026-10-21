@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kaaphalla Chest Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans+SC:wght@500;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: one narrow column - search, answers, then the wall map */
+:root{
+  --bg:#eef0ec; --panel:#ffffff; --fg:#1d2420; --muted:#5d6a63; --line:#d3d9d4;
+  --accent:#2f6b57; --wood:#2b2219; --wood-line:#4a3b2c; --hit:#f2c14e; --live:#2f8a4e; --stale:#b26b00;
+  --display:"Alegreya Sans SC","Trebuchet MS",sans-serif;
+  --body:"Alegreya Sans","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141917; --panel:#1c2320; --fg:#e7ece8; --muted:#97a59d; --line:#2e3833;
+  --accent:#7cc4a8; --live:#6fd38f; --stale:#f0b35a; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.45 var(--body)}
+.wrap{max-width:860px;margin:0 auto;padding-block:28px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:22px}
+h1{font:800 clamp(30px,6vw,44px)/1 var(--display);letter-spacing:.02em;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:6px 0 0}
+.status{display:inline-flex;align-items:center;gap:8px;margin-top:10px;font-size:15px;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.status.live .dot{background:var(--live)} .status.stale .dot{background:var(--stale)}
+#q{width:100%;font:500 20px var(--body);padding:14px 16px;border:2px solid var(--line);border-radius:10px;background:var(--panel);color:var(--fg)}
+#q:focus{outline:none;border-color:var(--accent)}
+.label{display:block;font:800 14px var(--display);letter-spacing:.12em;color:var(--muted);margin:0 0 8px}
+.examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center;color:var(--muted);font-size:15px}
+.examples button{font:inherit;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 12px;cursor:pointer}
+.examples button:hover,.examples button:focus-visible{border-color:var(--accent);outline:none}
+#results{display:flex;flex-direction:column;gap:8px}
+.res{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.res .name{font-weight:700;font-size:18px;min-width:0}
+.res .qty{color:var(--muted);font-variant-numeric:tabular-nums;font-size:15px}
+.res .where{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.res .note{grid-column:1/-1;color:var(--muted);font-size:15px}
+.sign{font:800 15px/1 var(--display);letter-spacing:.04em;background:var(--wood);border:1px solid var(--wood-line);border-radius:4px;padding:6px 9px 5px;white-space:nowrap;cursor:pointer}
+.pos{font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pos b{color:var(--fg)}
+.empty{color:var(--muted);padding:6px 2px}
+.chest{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.chest h2{margin:0 0 4px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:18px}
+.chest ul{margin:8px 0 0;padding:0;list-style:none;columns:2 220px;column-gap:24px}
+.chest li{display:flex;justify-content:space-between;gap:10px;padding:2px 0;break-inside:avoid;border-bottom:1px dotted var(--line)}
+.chest li span:last-child{color:var(--muted);font-variant-numeric:tabular-nums}
+.wallbox{overflow-x:auto;background:var(--wood);border-radius:10px;padding:10px}
+.wall{display:grid;grid-template-columns:28px repeat(24,minmax(54px,1fr));gap:3px;min-width:1350px}
+.rl{font:800 12px var(--display);color:#cdbfa9;display:flex;align-items:center;justify-content:center}
+.cl{font:500 11px var(--body);color:#a8987f;text-align:center}
+.cell{font:800 10.5px/1.1 var(--display);letter-spacing:.02em;background:#3a2e22;border:1px solid var(--wood-line);border-radius:3px;min-height:46px;padding:4px 3px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;overflow-wrap:anywhere;position:relative}
+.cell .n{position:absolute;right:3px;bottom:2px;font:500 9px var(--body);color:#a8987f}
+.cell:focus-visible{outline:2px solid var(--hit);outline-offset:1px}
+.cell.dim{opacity:.28} .cell.hit{box-shadow:0 0 0 2px var(--hit);opacity:1} .cell.sel{background:#5a4836}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:14px;color:#cdbfa9}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.foot{color:var(--muted);font-size:14px}
+@media (prefers-reduced-motion:no-preference){.cell{transition:opacity .15s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Kaaphalla Chest Finder</h1>
+    <p class="sub">Type what you're looking for. Rows count from the top of the wall, chests from the left.</p>
+    <span class="status" id="status"><span class="dot"></span><span id="statusText">Loading the latest chest count…</span></span>
+  </header>
+
+  <div>
+    <label for="q" class="label">FIND AN ITEM</label>
+    <input id="q" type="search" autocomplete="off" placeholder="e.g. bronze, molds, honey, wolf pelt">
+    <div class="examples" id="ex">Try:</div>
+  </div>
+
+  <div id="results" aria-live="polite"></div>
+  <section id="chestView" hidden></section>
+
+  <section>
+    <p class="label">THE WALL · TAP A CHEST TO SEE WHAT'S IN IT</p>
+    <div class="wallbox"><div class="wall" id="wall"></div><div class="legend" id="legend"></div></div>
+  </section>
+
+  <p class="foot">Amounts come straight from the server every couple of minutes. Put things back in the chest the sign says.</p>
+</div>
+
+<script>
+const D = {"cells":[{"r":1,"c":1,"s":"ANCIENT BARK","g":0},{"r":1,"c":2,"s":"CORE WOOD","g":0},{"r":1,"c":3,"s":"YGGDRASIL","g":0},{"r":2,"c":1,"s":"WOOD","g":0},{"r":2,"c":2,"s":"RESIN","g":0},{"r":2,"c":3,"s":"TAR","g":0},{"r":3,"c":1,"s":"FINE WOOD","g":0},{"r":3,"c":2,"s":"ASHWOOD","g":0},{"r":3,"c":3,"s":"TIMBERWOOD","g":0},{"r":4,"c":1,"s":"STONE","g":0},{"r":4,"c":2,"s":"GRAUSTEN","g":0},{"r":4,"c":3,"s":"BLACK MARBLE","g":0},{"r":1,"c":4,"s":"COPPER & TIN","g":1},{"r":1,"c":5,"s":"BRONZE","g":1},{"r":1,"c":6,"s":"CRYSTAL","g":1},{"r":2,"c":4,"s":"IRON","g":1},{"r":2,"c":5,"s":"SILVER","g":1},{"r":2,"c":6,"s":"BLACK METAL","g":1},{"r":3,"c":4,"s":"FLAMETAL","g":1},{"r":3,"c":5,"s":"BLOODGOLD","g":1},{"r":3,"c":6,"s":"FLINT","g":1},{"r":4,"c":4,"s":"OBSIDIAN","g":1},{"r":4,"c":5,"s":"CORES","g":1},{"r":4,"c":6,"s":"NAILS","g":1},{"r":1,"c":7,"s":"FEATHERS","g":2},{"r":1,"c":8,"s":"SPARE","g":2},{"r":2,"c":7,"s":"LINEN & JUTE","g":2},{"r":2,"c":8,"s":"HIDES A-D","g":2},{"r":3,"c":7,"s":"REFINED EITR","g":2},{"r":3,"c":8,"s":"HIDES L-S","g":2},{"r":4,"c":7,"s":"ICE","g":2},{"r":4,"c":8,"s":"HIDES T-W","g":2},{"r":1,"c":9,"s":"BONES","g":3},{"r":1,"c":10,"s":"DROPS A-B","g":3},{"r":2,"c":9,"s":"DROPS C","g":3},{"r":2,"c":10,"s":"DROPS D-F","g":3},{"r":3,"c":9,"s":"DROPS G-L","g":3},{"r":3,"c":10,"s":"DROPS M-O","g":3},{"r":4,"c":9,"s":"DROPS P-Z","g":3},{"r":4,"c":10,"s":"SPARE","g":3},{"r":1,"c":11,"s":"TROPHIES A-D","g":4},{"r":1,"c":12,"s":"TROPHIES E-L","g":4},{"r":1,"c":13,"s":"TROPHIES M-Z","g":4},{"r":1,"c":14,"s":"BOSS ITEMS","g":4},{"r":2,"c":11,"s":"IDOLS","g":4},{"r":2,"c":12,"s":"MOLDS & CASTS","g":4},{"r":2,"c":13,"s":"COINS & VALUABLES","g":4},{"r":2,"c":14,"s":"UPGRADE GEMS","g":4},{"r":3,"c":11,"s":"AMMO & BOMBS","g":4},{"r":3,"c":12,"s":"WEAPONS & STAFFS","g":4},{"r":3,"c":13,"s":"ARMOR","g":4},{"r":3,"c":14,"s":"CAPES & TRINKETS","g":4},{"r":4,"c":11,"s":"TOOLS","g":4},{"r":4,"c":12,"s":"UTILITY","g":4},{"r":4,"c":13,"s":"SPARE","g":4},{"r":4,"c":14,"s":"SPARE","g":4},{"r":1,"c":15,"s":"CROP SEEDS","g":5},{"r":1,"c":16,"s":"TREE SEEDS","g":5},{"r":1,"c":17,"s":"BAIT","g":5},{"r":1,"c":18,"s":"BLOODBAGS ENTRAILS","g":5},{"r":1,"c":19,"s":"THISTLE DANDELION","g":5},{"r":1,"c":20,"s":"MEAD BASES","g":5},{"r":1,"c":21,"s":"JOTUN PUFFS","g":5},{"r":1,"c":22,"s":"FLOUR","g":5},{"r":2,"c":15,"s":"MEAT A-B","g":5},{"r":2,"c":16,"s":"MEAT C-L","g":5},{"r":2,"c":17,"s":"MEAT M-S","g":5},{"r":2,"c":18,"s":"MEAT V-W","g":5},{"r":2,"c":19,"s":"FISH","g":5},{"r":2,"c":20,"s":"EGGS","g":5},{"r":2,"c":21,"s":"EGGS","g":5},{"r":2,"c":22,"s":"HONEY & JELLY","g":5},{"r":3,"c":15,"s":"MUSHROOMS","g":5},{"r":3,"c":16,"s":"SPARE","g":5},{"r":3,"c":17,"s":"MAGECAP","g":5},{"r":3,"c":18,"s":"SMOKE PUFFS","g":5},{"r":3,"c":19,"s":"BERRIES B-C","g":5},{"r":3,"c":20,"s":"BERRIES L-V","g":5},{"r":3,"c":21,"s":"CARROTS","g":5},{"r":3,"c":22,"s":"SAP","g":5},{"r":4,"c":15,"s":"BARLEY","g":5},{"r":4,"c":16,"s":"FLAX","g":5},{"r":4,"c":17,"s":"OATS","g":5},{"r":4,"c":18,"s":"KALE & POTEITR","g":5},{"r":4,"c":19,"s":"FIDDLEHEAD & VINEBERRY","g":5},{"r":4,"c":20,"s":"TURNIPS & ONIONS","g":5},{"r":4,"c":21,"s":"DOUGH & UNCOOKED","g":5},{"r":4,"c":22,"s":"SPARE","g":5},{"r":1,"c":23,"s":"FEASTS & BAKED","g":6},{"r":1,"c":24,"s":"RESIST & OTHER MEADS","g":6},{"r":2,"c":23,"s":"HEALTH FOOD","g":6},{"r":2,"c":24,"s":"STAMINA FOOD","g":6},{"r":3,"c":23,"s":"MAGE FOOD","g":6},{"r":3,"c":24,"s":"COOKED MEAT & FISH","g":6},{"r":4,"c":23,"s":"HEAL & STAMINA MEADS","g":6},{"r":4,"c":24,"s":"EITR MEADS","g":6}],"groups":[{"n":"Wood & Building","c":"#FFE066"},{"n":"Metal & Minerals","c":"#E6ECF2"},{"n":"Hides & Crafting","c":"#7FD8FF"},{"n":"Drops A–Z","c":"#FF8A8A"},{"n":"Bosses & Gear","c":"#D9A6FF"},{"n":"Food Ingredients","c":"#FFB347"},{"n":"Ready Food & Meads","c":"#9BE36B"}],"notes":{"RESIN":"resin, charcoal resin","TIMBERWOOD":"timberwood, frozen branches","COPPER & TIN":"they smelt together into bronze","CORES":"surtling cores, frostcore, black cores, molten cores","NAILS":"iron and bronze nails","SPARE":"empty, for fixing mistakes","LINEN & JUTE":"linen, blue jute, red jute","HIDES A-D":"asksvin, bear, deer","HIDES L-S":"leather scraps, lox, moose, scale, seal","ICE":"for the kiln, soups, oat milk and casts","HIDES T-W":"troll, wolf","BONES":"bone fragments (keep 600), charred bone, withered bone","DROPS A-B":"asksvin bladder, asksvin carrion bones, old axe heads, barrel rings, bear paw, bilebag, bonemaw tooth","DROPS C":"carapace, celestial feather, chain, charred cogwheel, charred skull, chitin","DROPS D-F":"dead pulp, ectoplasm, elaking hair, ember, fenris claw, fenris hair, freeze gland, frozen fuel","DROPS G-L":"greydwarf eye, guck, hook, leather straps, long claws, luminous larva","DROPS M-O":"mandible, mechanical spring, moose sinew, morgen heart, morgen sinew, needle, nornathread, ooze, mörk ooze","DROPS P-Z":"petrified tissue, pot shard, proustite powder, root, serpent scale, soft tissue, sulfur stone, wisp, wolf fang, writhan roots, ymir flesh","TROPHIES A-D":"Abomination to Dvergr","TROPHIES E-L":"Eikthyr to Lox","TROPHIES M-Z":"Moder to Yagluth","BOSS ITEMS":"ancient seeds, dragon eggs, fuling totems, thunderstones, bells, memorial coal, hard antler, wishbone, dragon tears, torn spirit, majestic carapace, fader relic, malicious blood, swamp key, dvergr keys, bloodgold key","IDOLS":"Forge of Potential upgrade items, every tier","MOLDS & CASTS":"every mold, casts, intricate key mold","COINS & VALUABLES":"coins, ancient coins, amber, amber pearls, rubies, ancient gemstones, silver necklaces","UPGRADE GEMS":"bloodstone, iolite, jade, thunderblood essence, frostfire essence","AMMO & BOMBS":"arrows, bolts, bombs, lava bombs, ember charges, snowballs","WEAPONS & STAFFS":"swords, axes, maces, bows, spears, staffs, shields","ARMOR":"helmets, chests, legs","TOOLS":"pickaxes, axes for chopping, hoes, cultivators, hammers, shovels","UTILITY":"torches, demisters, lanterns, tankards, fishing rods, sharpening stones","CROP SEEDS":"carrot, kale, onion, turnip, oat, vineberry, poteitr seeds, max 200 each","TREE SEEDS":"acorns, beech, birch, fir, pine, timberwood cones, max 200 each","BAIT":"every bait type","BLOODBAGS ENTRAILS":"bloodbags, blood clots, entrails","MEAD BASES":"waiting for the fermenter","FLOUR":"barley flour, oat flour","MEAT A-B":"asksvin tail, bear, boar, bonemaw","MEAT C-L":"chicken, deer, hare, lox","MEAT M-S":"moose, neck tail, seal blubber, seeker, serpent","MEAT V-W":"volture, wolf","FISH":"every fish type","EGGS":"overflow","HONEY & JELLY":"honey, royal jelly, queen bees","MUSHROOMS":"red and yellow mushrooms, keep 600 of each","BERRIES B-C":"blueberries, bukeperries, cloudberries","BERRIES L-V":"lingonberries, raspberries, vineberries","FIDDLEHEAD & VINEBERRY":"fiddlehead, vineberry clusters","DOUGH & UNCOOKED":"bread dough, oat milk, uncooked pies","FEASTS & BAKED":"feasts, bread, pies, feast ingredients: spices, seaweed, cured hamstring","RESIST & OTHER MEADS":"fire, frost, poison, tasty, barley wine","STAMINA FOOD":"jerky, salad, carrot soup, turnip stew","MAGE FOOD":"eitr food"},"names":{"item_coins":"Coins","item_carrotseeds":"Carrot Seeds","item_bonefragments":"Bone Fragments","item_feathers":"Feathers","item_barley":"Barley","item_honey":"Honey","item_mushroomcommon":"Mushroom","item_mushroomyellow":"Yellow Mushroom","item_linenthread":"Linen Thread","item_flax":"Flax","item_fishingbait":"Fishing Bait","item_beechseeds":"Beech Seeds","item_cloudberries":"Cloudberries","item_kale":"Kale","item_barleyflour":"Barley Flour","item_stone":"Stone","item_elderbark":"Ancient Bark","item_thistle":"Thistle","item_leatherscraps":"Leather Scraps","item_obsidian":"Obsidian","item_frostwood":"Timberwood","item_chicken_egg":"Egg","item_dandelion":"Dandelion","item_charredbone":"Charred Bone","item_magecap":"Magecap","item_raspberries":"Raspberries","item_grausten":"Grausten","item_carapace":"Carapace","item_blueberries":"Blueberries","item_loxmeat":"Lox Meat","item_iron":"Iron","item_kaleseeds":"Kale Seeds","item_jotunpuffs":"Jotun Puffs","item_carrot":"Carrot","item_blackmarble":"Black Marble","item_wolfpelt":"Wolf Pelt","item_smokepuff":"Smoke Puff","item_fiddleheadfern":"Fiddlehead","item_wood":"Wood","item_coal":"Coal","item_asksvin_meat":"Asksvin Tail","item_entrails":"Entrails","item_askbladder":"Asksvin Bladder","item_witheredbone":"Withered Bone","item_oat":"Oats","item_needle":"Needle","item_wolffang":"Wolf Fang","item_loxpelt":"Lox Pelt","item_blackwood":"Ashwood","item_flint":"Flint","item_glowworm":"Luminous Larva","item_ancientcoin":"Ancient Coin","item_greydwarfeye":"Greydwarf Eye","item_bug_meat":"Seeker Meat","item_volture_meat":"Volture Meat","item_askhide":"Asksvin Hide","item_wisp":"Wisp","item_arrow_fire":"Arrow Fire","item_poteitr":"Poteitr","item_finewood":"Fine Wood","item_pukeberries":"Bukeperries","item_chitin":"Chitin","item_voltureegg":"Volture Egg","item_elakinghairbundle":"Elaking Hair","item_pot_shard_green":"Pot Shard","item_wolf_meat":"Wolf Meat","item_arrow_needle":"Arrow Needle","item_faderember":"Ember","item_wolfjerky":"Wolf Jerky","item_boar_meat":"Boar Meat","item_fircone_big":"Timberwood Cone","item_deerhide":"Deer Hide","item_turnip":"Turnip","item_lingonberries":"Lingonberries","item_arrow_poison":"Arrow Poison","item_bronze":"Bronze","item_moltencore":"Molten Core","item_ooze":"Ooze","item_scalehide":"Scale Hide","item_eitr":"Refined Eitr","item_meat_rotten":"Rotten Meat","item_sulfurstone":"Sulfur Stone","item_arrow_iron":"Arrow Iron","item_chain":"Chain","item_tar":"Tar","item_tin":"Tin","item_copper":"Copper","item_amberpearl":"Amber Pearl","item_arrow_flint":"Arrow Flint","item_fircone":"Fir Cone","item_boar_meat_cooked":"Cooked Boar Meat","item_lavabomb":"Lava Bomb","item_frostcore":"Frostcore","item_ruby":"Ruby","item_trophy_boar":"Trophy: Boar","item_trophy_deer":"Trophy: Deer","item_mead_poisonres":"Poison Resistance Mead","item_memorialcoal":"Memorial Coal","item_snowball":"Snowball","item_wolfhairbundle":"Fenris Hair","item_flametal":"Flametal","item_ooze_mork":"Mörk Ooze","item_bolt_charred":"Bolt Charred","item_moose_meat":"Moose Meat","item_yggdrasilwood":"Yggdrasil Wood","item_bronzenails":"Bronze Nails","item_silver":"Silver","item_bjornhide":"Bear Hide","item_celestialfeather":"Celestial Feather","item_onion":"Onion","item_arrow_charred":"Arrow Charred","item_loxmeat_cooked":"Cooked Lox Meat","item_necktail":"Neck Tail","item_salad":"Salad","item_charredskull":"Charred Skull","item_gold":"Gold","item_trophy_greydwarf":"Trophy: Greydwarf","item_trophy_skeleton":"Trophy: Skeleton","item_ectoplasm":"Ectoplasm","item_mead_hp_major":"Major Healing Mead","item_mead_tasty":"Tasty Mead","item_trophy_draugr":"Trophy: Draugr","item_blackmetal":"Black Metal","item_roundlog":"Core Wood","item_leatherstraps":"Leather Straps","item_morgensinew":"Morgen Sinew","item_morgenheart":"Morgen Heart","item_sausages":"Sausages","item_trophy_goblin":"Trophy: Fuling","item_ironnails":"Iron Nails","item_trophy_lox":"Trophy: Lox","item_upgrader_tier5 $item_upgrader_armor $item_upgrader_name":"Idol: armor tier 5","item_jutered":"Red Jute","item_vineberry":"Vineberry Cluster","item_fish_cooked":"Cooked Fish","item_mold_keys":"Mold: Keys","item_resin":"Resin","item_trollhide":"Troll Hide","item_trophy_wolf":"Trophy: Wolf","item_ancientseed":"Ancient Seed","item_chicken_meat":"Chicken Meat","item_juteblue":"Blue Jute","item_oatflour":"Oat Flour","item_barleywine":"Fire Resistance Barley Wine","item_trophy_asksvin":"Trophy: Asksvin","item_blackcore":"Black Core","item_bjornpaw":"Bear Paw","item_deer_meat":"Deer Meat","item_onionseeds":"Onion Seeds","item_proustitepowder":"Proustite Powder","item_bomb_dynamite":"Dynamite Bomb","item_moosesinew":"Moose Sinew","item_trophy_greydwarfshaman":"Trophy: Greydwarf Shaman","item_turnipstew":"Turnip Stew","item_vineberryseeds":"Vineberry Seeds","item_carrotsoup":"Carrot Soup","item_hardantler":"Hard Antler","item_mandible":"Mandible","item_root":"Root","item_ancientgemstone_orange":"Ancient Gemstone (orange)","item_bloodclot":"Blood Clot","item_moosehide":"Moose Hide","item_silvernecklace":"Silver Necklace","item_blubber":"Seal Blubber","item_charredcogwheel":"Charred Cogwheel","item_crystal":"Crystal","item_mead_hp_minor":"Minor Healing Mead","item_mead_stamina_minor":"Minor Stamina Mead","item_moleclaws":"Long Claws","item_sealhide":"Seal Pelt","item_wolfclaw":"Fenris Claw","item_bilebag":"Bilebag","item_oakseeds":"Acorn","item_softtissue":"Soft Tissue","item_surtlingcore":"Surtling Core","item_trophy_blob":"Trophy: Blob","item_trophy_troll":"Trophy: Troll","item_wolf_meat_cooked":"Cooked Wolf Meat","item_ancientgemstone_green":"Ancient Gemstone (green)","item_bjorn_meat":"Bear Meat","item_mold_mace":"Mold: Mace","item_mold_spear":"Mold: Spear","item_moose_meat_cooked":"Cooked Moose Meat","item_seekeraspic":"Seeker Aspic","item_upgrader_tier5 $item_upgrader_weapon $item_upgrader_name":"Idol: weapon tier 5","item_ancientgemstone_black":"Ancient Gemstone (black)","item_arrow_frost":"Arrow Frost","item_asksvincarrionribcage":"Asksvin Carrion Ribcage","item_bonemawmeat":"Bonemaw Meat","item_hook":"Hook","item_mold_bow":"Mold: Bow","item_trophy_tick":"Trophy: Tick","item_upgrader_tier4 $item_upgrader_armor $item_upgrader_name":"Idol: armor tier 4","item_writhanroots":"Writhan Roots","item_cape_lox":"Cape Lox","item_goblintotem":"Fuling Totem","item_guck":"Guck","item_mold_shield_round":"Mold: Shield Round","item_mold_shield_tower":"Mold: Shield Tower","item_mold_staffthunderblood":"Mold: Staffthunderblood","item_mold_sword":"Mold: Sword","item_trophy_elaking":"Trophy: Elaking","animal_fish1":"Perch","item_barkabranch":"Frozen Branch","item_curedsquirrelhamstring":"Cured Squirrel Hamstring","item_freezegland":"Freeze Gland","item_freshseaweed":"Fresh Seaweed","item_pinecone":"Pine Cone","item_torch":"Torch","item_trophy_abomination":"Trophy: Abomination","item_trophy_seeker":"Trophy: Seeker","item_upgrader_tier4 $item_upgrader_weapon $item_upgrader_name":"Idol: weapon tier 4","item_upgrader_tier6 $item_upgrader_weapon $item_upgrader_name":"Idol: weapon tier 6","item_asksvincarrionskull":"Asksvin Carrion Skull","item_demister":"Demister","item_dvergrkeyfragment":"Dvergr Key Fragment","item_fader_drop":"Fader Relic","item_gemstone_green":"Jade","item_mold_knife":"Mold: Knife","item_mold_mace2h":"Mold: Mace2H","item_mold_staffspiritcaller":"Mold: Staffspiritcaller","item_pickaxe_antler":"Pickaxe Antler","item_seekerqueen_drop":"Majestic Carapace","item_trophy_deathsquito":"Trophy: Deathsquito","item_trophy_eikthyr":"Trophy: Eikthyr","item_trophy_greydwarfbrute":"Trophy: Greydwarf Brute","item_upgrader_tier6 $item_upgrader_armor $item_upgrader_name":"Idol: armor tier 6","item_wishbone":"Wishbone","animal_fish2":"Pike","item_birchseeds":"Birch Seeds","item_bonemawtooth":"Bonemaw Tooth","item_cryptkey":"Swamp Key","item_cultivator":"Cultivator","item_knife_butcher":"Knife Butcher","item_mold_atgeir":"Mold: Atgeir","item_mold_axe":"Mold: Axe","item_mold_stafffrostorbs":"Mold: Stafffrostorbs","item_mold_stafforbofahri":"Mold: Stafforbofahri","item_serpentmeat":"Serpent Meat","item_thunderstone":"Thunder Stone","item_trophy_charredmelee":"Trophy: Charred Warrior","item_trophy_growth":"Trophy: Growth","item_trophy_neck":"Trophy: Neck","item_upgrader_tier1 $item_upgrader_armor $item_upgrader_name":"Idol: armor tier 1","item_ancientgemstone_purple":"Ancient Gemstone (purple)","item_asksvincarrionpelvic":"Asksvin Carrion Pelvis","item_axe_flint":"Axe Flint","item_blacksoup":"Black Soup","item_bloodbag":"Bloodbag","item_bow_draugrfang":"Bow Draugrfang","item_cape_deerhide":"Cape Deerhide","item_chest_root":"Chest Root","item_fishingrod":"Fishingrod","item_hammer":"Hammer","item_hoe":"Hoe","item_ironscrap":"Scrap Iron","item_legs_lox":"Legs Lox","item_loxpie":"Lox Meat Pie","item_mechanicalspring":"Mechanical Spring","item_mold_fistweapon":"Mold: Fistweapon","item_mold_shield_buckler":"Mold: Shield Buckler","item_mold_sword2h":"Mold: Sword2H","item_pickaxe_iron":"Pickaxe Iron","item_sap":"Sap","item_serpentmeatcooked":"Cooked Serpent Meat","item_sharpeningstone":"Sharpening Stone","item_snowshovel":"Snowshovel","item_sparklingshroomshake":"Sparkling Shroomshake","item_spiceforests":"Forest Spice","item_tankard":"Tankard","item_trophy_blob_lava":"Trophy: Lava Blob","item_trophy_blob_morkhalla":"Trophy: Mörk Blob","item_trophy_charredarcher":"Trophy: Charred Marksman","item_trophy_goblinshaman":"Trophy: Fuling Shaman","item_trophy_hatchling":"Trophy: Drake","item_trophy_volture":"Trophy: Volture","item_trophy_wraith":"Trophy: Wraith","item_turnipseeds":"Turnip Seeds","item_yagluththing":"Torn Spirit","item_amber":"Amber","item_asksvincarrionneck":"Asksvin Carrion Neck","item_atgeir_bronze":"Atgeir Bronze","item_axe_blackmetal":"Axe Blackmetal","item_axe_early":"Axe Early","item_axe_gold":"Axe Gold","item_axe_wood":"Axe Wood","item_axehead1":"Old Axe Head","item_axehead2":"Old Axe Head (2)","item_barrelrings":"Barrel Rings","item_battleaxe_skullsplittur":"Battleaxe Skullsplittur","item_bloodgoldkey":"Bloodgold Key","item_bow_snipesnap":"Bow Snipesnap","item_cape_ash":"Cape Ash","item_cape_feather":"Cape Feather","item_cape_trollhide":"Cape Trollhide","item_charcoalresin":"Charcoal Resin","item_chest_berserker":"Chest Berserker","item_chest_lox":"Chest Lox","item_chest_trollleather":"Chest Trollleather","item_dragonegg":"Dragon Egg","item_dragontear":"Dragon Tear","item_dvergrkey":"Dvergr Key","item_feaster":"Feaster","item_feastmeadows":"Meadows Feast","item_frozenfuel":"Frozen Fuel","item_gemstone_blue":"Iolite","item_gemstone_red":"Bloodstone","item_helmet_berserker":"Helmet Berserker","item_helmet_lox":"Helmet Lox","item_helmet_mage_deepnorth":"Helmet Mage Deepnorth","item_helmet_root":"Helmet Root","item_helmet_witchhat":"Helmet Witchhat","item_lantern":"Lantern","item_legs_berserker":"Legs Berserker","item_legs_trollleather":"Legs Trollleather","item_mace_silver":"Mace Silver","item_mead_frostres":"Frost Resistance Mead","item_mead_hp_medium":"Medium Healing Mead","item_mold_axe2h":"Mold: Axe2H","item_mushroomomelette":"Mushroom Omelette","item_nornthread":"Nornathread","item_pickaxe_blackmetal":"Pickaxe Blackmetal","item_shield_blackmetal":"Shield Blackmetal","item_shield_flametal":"Shield Flametal","item_shield_wood":"Shield Wood","item_spear_flint":"Spear Flint","item_staff_lightning":"Staff Lightning","item_staffclusterbomb":"Staffclusterbomb","item_staffredtroll":"Staffredtroll","item_staffshield":"Staffshield","item_staffskeleton":"Staffskeleton","item_stagbreaker":"Stagbreaker","item_sword_mistwalker":"Sword Mistwalker","item_trinketblackdtamina":"Trinketblackdtamina","item_trinketbronzestamina":"Trinketbronzestamina","item_trinketcarapaceeitr":"Trinketcarapaceeitr","item_trinketironhealth":"Trinketironhealth","item_trinketsilverdamage":"Trinketsilverdamage","item_trophy_barka":"Trophy: Barka","item_trophy_brutebro":"Trophy: Brute Bro","item_trophy_fallenvalkyrie":"Trophy: Fallen Valkyrie","item_trophy_gjall":"Trophy: Gjall","item_trophy_leech":"Trophy: Leech","item_trophy_seal":"Trophy: Seal","item_trophy_shamanbro":"Trophy: Shaman Bro","item_trophy_surtling":"Trophy: Surtling","item_trophy_ulv":"Trophy: Ulv","item_upgrader_tier1 $item_upgrader_weapon $item_upgrader_name":"Idol: weapon tier 1","item_upgrader_tier2 $item_upgrader_armor $item_upgrader_name":"Idol: armor tier 2","item_upgrader_tier2 $item_upgrader_weapon $item_upgrader_name":"Idol: weapon tier 2","item_oatseeds":"Oat Seeds","item_royaljelly":"Royal Jelly","item_blubber_cooked":"Cooked Blubber","item_mold_crossbow":"Mold: Crossbow","item_trophy_jotunwarrior":"Jotun Warrior Trophy","item_trophy_jotunwitch":"Jotun Witch Trophy"},"plan":{"item_coins":"COINS & VALUABLES","item_carrotseeds":"CROP SEEDS","item_bonefragments":"BONES","item_feathers":"FEATHERS","item_barley":"BARLEY","item_honey":"HONEY & JELLY","item_mushroomcommon":"MUSHROOMS","item_mushroomyellow":"MUSHROOMS","item_linenthread":"LINEN & JUTE","item_flax":"FLAX","item_fishingbait":"BAIT","item_beechseeds":"TREE SEEDS","item_cloudberries":"BERRIES B-C","item_kale":"KALE & POTEITR","item_barleyflour":"FLOUR","item_stone":"STONE","item_elderbark":"ANCIENT BARK","item_thistle":"THISTLE DANDELION","item_leatherscraps":"HIDES L-S","item_obsidian":"OBSIDIAN","item_frostwood":"TIMBERWOOD","item_chicken_egg":"EGGS","item_dandelion":"THISTLE DANDELION","item_charredbone":"BONES","item_magecap":"MAGECAP","item_raspberries":"BERRIES L-V","item_grausten":"GRAUSTEN","item_carapace":"DROPS C","item_blueberries":"BERRIES B-C","item_loxmeat":"MEAT C-L","item_iron":"IRON","item_kaleseeds":"CROP SEEDS","item_jotunpuffs":"JOTUN PUFFS","item_carrot":"CARROTS","item_blackmarble":"BLACK MARBLE","item_wolfpelt":"HIDES T-W","item_smokepuff":"SMOKE PUFFS","item_fiddleheadfern":"FIDDLEHEAD & VINEBERRY","item_wood":"WOOD","item_asksvin_meat":"MEAT A-B","item_entrails":"BLOODBAGS ENTRAILS","item_askbladder":"DROPS A-B","item_witheredbone":"BONES","item_oat":"OATS","item_needle":"DROPS M-O","item_wolffang":"DROPS P-Z","item_loxpelt":"HIDES L-S","item_blackwood":"ASHWOOD","item_flint":"FLINT","item_glowworm":"DROPS G-L","item_ancientcoin":"COINS & VALUABLES","item_greydwarfeye":"DROPS G-L","item_bug_meat":"MEAT M-S","item_volture_meat":"MEAT V-W","item_askhide":"HIDES A-D","item_wisp":"DROPS P-Z","item_arrow_fire":"AMMO & BOMBS","item_poteitr":"KALE & POTEITR","item_finewood":"FINE WOOD","item_pukeberries":"BERRIES B-C","item_chitin":"DROPS C","item_voltureegg":"EGGS","item_elakinghairbundle":"DROPS D-F","item_pot_shard_green":"DROPS P-Z","item_wolf_meat":"MEAT V-W","item_arrow_needle":"AMMO & BOMBS","item_faderember":"DROPS D-F","item_wolfjerky":"STAMINA FOOD","item_boar_meat":"MEAT A-B","item_fircone_big":"TREE SEEDS","item_deerhide":"HIDES A-D","item_turnip":"TURNIPS & ONIONS","item_lingonberries":"BERRIES L-V","item_arrow_poison":"AMMO & BOMBS","item_bronze":"BRONZE","item_moltencore":"CORES","item_ooze":"DROPS M-O","item_scalehide":"HIDES L-S","item_eitr":"REFINED EITR","item_sulfurstone":"DROPS P-Z","item_arrow_iron":"AMMO & BOMBS","item_chain":"DROPS C","item_tar":"TAR","item_tin":"COPPER & TIN","item_copper":"COPPER & TIN","item_amberpearl":"COINS & VALUABLES","item_arrow_flint":"AMMO & BOMBS","item_fircone":"TREE SEEDS","item_boar_meat_cooked":"COOKED MEAT & FISH","item_lavabomb":"AMMO & BOMBS","item_frostcore":"CORES","item_ruby":"COINS & VALUABLES","item_trophy_boar":"TROPHIES A-D","item_trophy_deer":"TROPHIES A-D","item_mead_poisonres":"RESIST & OTHER MEADS","item_memorialcoal":"BOSS ITEMS","item_snowball":"AMMO & BOMBS","item_wolfhairbundle":"DROPS D-F","item_flametal":"FLAMETAL","item_ooze_mork":"DROPS M-O","item_bolt_charred":"AMMO & BOMBS","item_moose_meat":"MEAT M-S","item_yggdrasilwood":"YGGDRASIL","item_bronzenails":"NAILS","item_silver":"SILVER","item_bjornhide":"HIDES A-D","item_celestialfeather":"DROPS C","item_onion":"TURNIPS & ONIONS","item_arrow_charred":"AMMO & BOMBS","item_loxmeat_cooked":"COOKED MEAT & FISH","item_necktail":"MEAT M-S","item_salad":"STAMINA FOOD","item_charredskull":"DROPS C","item_gold":"COINS & VALUABLES","item_trophy_greydwarf":"TROPHIES E-L","item_trophy_skeleton":"TROPHIES M-Z","item_ectoplasm":"DROPS D-F","item_mead_hp_major":"HEAL & STAMINA MEADS","item_mead_tasty":"RESIST & OTHER MEADS","item_trophy_draugr":"TROPHIES A-D","item_blackmetal":"BLACK METAL","item_roundlog":"CORE WOOD","item_leatherstraps":"DROPS G-L","item_morgensinew":"DROPS M-O","item_morgenheart":"DROPS M-O","item_sausages":"HEALTH FOOD","item_trophy_goblin":"TROPHIES E-L","item_ironnails":"NAILS","item_trophy_lox":"TROPHIES E-L","item_upgrader_tier5 $item_upgrader_armor $item_upgrader_name":"IDOLS","item_jutered":"LINEN & JUTE","item_vineberry":"FIDDLEHEAD & VINEBERRY","item_fish_cooked":"COOKED MEAT & FISH","item_mold_keys":"MOLDS & CASTS","item_resin":"RESIN","item_trollhide":"HIDES T-W","item_trophy_wolf":"TROPHIES M-Z","item_ancientseed":"BOSS ITEMS","item_chicken_meat":"MEAT C-L","item_juteblue":"LINEN & JUTE","item_oatflour":"FLOUR","item_barleywine":"RESIST & OTHER MEADS","item_trophy_asksvin":"TROPHIES A-D","item_blackcore":"CORES","item_bjornpaw":"DROPS A-B","item_deer_meat":"MEAT C-L","item_onionseeds":"CROP SEEDS","item_proustitepowder":"DROPS P-Z","item_bomb_dynamite":"AMMO & BOMBS","item_moosesinew":"DROPS M-O","item_trophy_greydwarfshaman":"TROPHIES E-L","item_turnipstew":"STAMINA FOOD","item_vineberryseeds":"CROP SEEDS","item_carrotsoup":"STAMINA FOOD","item_hardantler":"BOSS ITEMS","item_mandible":"DROPS M-O","item_root":"DROPS P-Z","item_ancientgemstone_orange":"COINS & VALUABLES","item_bloodclot":"BLOODBAGS ENTRAILS","item_moosehide":"HIDES L-S","item_silvernecklace":"COINS & VALUABLES","item_blubber":"MEAT M-S","item_charredcogwheel":"DROPS C","item_crystal":"CRYSTAL","item_mead_hp_minor":"HEAL & STAMINA MEADS","item_mead_stamina_minor":"HEAL & STAMINA MEADS","item_moleclaws":"DROPS G-L","item_sealhide":"HIDES L-S","item_wolfclaw":"DROPS D-F","item_bilebag":"DROPS A-B","item_oakseeds":"TREE SEEDS","item_softtissue":"DROPS P-Z","item_surtlingcore":"CORES","item_trophy_blob":"TROPHIES A-D","item_trophy_troll":"TROPHIES M-Z","item_wolf_meat_cooked":"COOKED MEAT & FISH","item_ancientgemstone_green":"COINS & VALUABLES","item_bjorn_meat":"MEAT A-B","item_mold_mace":"MOLDS & CASTS","item_mold_spear":"MOLDS & CASTS","item_moose_meat_cooked":"COOKED MEAT & FISH","item_seekeraspic":"MAGE FOOD","item_upgrader_tier5 $item_upgrader_weapon $item_upgrader_name":"IDOLS","item_ancientgemstone_black":"COINS & VALUABLES","item_arrow_frost":"AMMO & BOMBS","item_asksvincarrionribcage":"DROPS A-B","item_bonemawmeat":"MEAT A-B","item_hook":"DROPS G-L","item_mold_bow":"MOLDS & CASTS","item_trophy_tick":"TROPHIES M-Z","item_upgrader_tier4 $item_upgrader_armor $item_upgrader_name":"IDOLS","item_writhanroots":"DROPS P-Z","item_cape_lox":"CAPES & TRINKETS","item_goblintotem":"BOSS ITEMS","item_guck":"DROPS G-L","item_mold_shield_round":"MOLDS & CASTS","item_mold_shield_tower":"MOLDS & CASTS","item_mold_staffthunderblood":"MOLDS & CASTS","item_mold_sword":"MOLDS & CASTS","item_trophy_elaking":"TROPHIES E-L","animal_fish1":"FISH","item_barkabranch":"TIMBERWOOD","item_curedsquirrelhamstring":"FEASTS & BAKED","item_freezegland":"DROPS D-F","item_freshseaweed":"FEASTS & BAKED","item_pinecone":"TREE SEEDS","item_torch":"UTILITY","item_trophy_abomination":"TROPHIES A-D","item_trophy_seeker":"TROPHIES M-Z","item_upgrader_tier4 $item_upgrader_weapon $item_upgrader_name":"IDOLS","item_upgrader_tier6 $item_upgrader_weapon $item_upgrader_name":"IDOLS","item_asksvincarrionskull":"DROPS A-B","item_demister":"UTILITY","item_dvergrkeyfragment":"BOSS ITEMS","item_fader_drop":"BOSS ITEMS","item_gemstone_green":"UPGRADE GEMS","item_mold_knife":"MOLDS & CASTS","item_mold_mace2h":"MOLDS & CASTS","item_mold_staffspiritcaller":"MOLDS & CASTS","item_pickaxe_antler":"TOOLS","item_seekerqueen_drop":"BOSS ITEMS","item_trophy_deathsquito":"TROPHIES A-D","item_trophy_eikthyr":"TROPHIES E-L","item_trophy_greydwarfbrute":"TROPHIES E-L","item_upgrader_tier6 $item_upgrader_armor $item_upgrader_name":"IDOLS","item_wishbone":"BOSS ITEMS","animal_fish2":"FISH","item_birchseeds":"TREE SEEDS","item_bonemawtooth":"DROPS A-B","item_cryptkey":"BOSS ITEMS","item_cultivator":"TOOLS","item_knife_butcher":"WEAPONS & STAFFS","item_mold_atgeir":"MOLDS & CASTS","item_mold_axe":"MOLDS & CASTS","item_mold_stafffrostorbs":"MOLDS & CASTS","item_mold_stafforbofahri":"MOLDS & CASTS","item_serpentmeat":"MEAT M-S","item_thunderstone":"BOSS ITEMS","item_trophy_charredmelee":"TROPHIES A-D","item_trophy_growth":"TROPHIES E-L","item_trophy_neck":"TROPHIES M-Z","item_upgrader_tier1 $item_upgrader_armor $item_upgrader_name":"IDOLS","item_ancientgemstone_purple":"COINS & VALUABLES","item_asksvincarrionpelvic":"DROPS A-B","item_axe_flint":"TOOLS","item_blacksoup":"HEALTH FOOD","item_bloodbag":"BLOODBAGS ENTRAILS","item_bow_draugrfang":"WEAPONS & STAFFS","item_cape_deerhide":"CAPES & TRINKETS","item_chest_root":"ARMOR","item_fishingrod":"UTILITY","item_hammer":"TOOLS","item_hoe":"TOOLS","item_legs_lox":"ARMOR","item_loxpie":"FEASTS & BAKED","item_mechanicalspring":"DROPS M-O","item_mold_fistweapon":"MOLDS & CASTS","item_mold_shield_buckler":"MOLDS & CASTS","item_mold_sword2h":"MOLDS & CASTS","item_pickaxe_iron":"TOOLS","item_sap":"SAP","item_serpentmeatcooked":"COOKED MEAT & FISH","item_sharpeningstone":"UTILITY","item_snowshovel":"TOOLS","item_sparklingshroomshake":"MAGE FOOD","item_spiceforests":"FEASTS & BAKED","item_tankard":"UTILITY","item_trophy_blob_lava":"TROPHIES E-L","item_trophy_blob_morkhalla":"TROPHIES M-Z","item_trophy_charredarcher":"TROPHIES A-D","item_trophy_goblinshaman":"TROPHIES E-L","item_trophy_hatchling":"TROPHIES A-D","item_trophy_volture":"TROPHIES M-Z","item_trophy_wraith":"TROPHIES M-Z","item_turnipseeds":"CROP SEEDS","item_yagluththing":"BOSS ITEMS","item_amber":"COINS & VALUABLES","item_asksvincarrionneck":"DROPS A-B","item_atgeir_bronze":"WEAPONS & STAFFS","item_axe_blackmetal":"TOOLS","item_axe_early":"TOOLS","item_axe_gold":"TOOLS","item_axe_wood":"TOOLS","item_axehead1":"DROPS A-B","item_axehead2":"DROPS A-B","item_barrelrings":"DROPS A-B","item_battleaxe_skullsplittur":"WEAPONS & STAFFS","item_bloodgoldkey":"BOSS ITEMS","item_bow_snipesnap":"WEAPONS & STAFFS","item_cape_ash":"CAPES & TRINKETS","item_cape_feather":"CAPES & TRINKETS","item_cape_trollhide":"CAPES & TRINKETS","item_charcoalresin":"RESIN","item_chest_berserker":"ARMOR","item_chest_lox":"ARMOR","item_chest_trollleather":"ARMOR","item_dragonegg":"BOSS ITEMS","item_dragontear":"BOSS ITEMS","item_dvergrkey":"BOSS ITEMS","item_feaster":"UTILITY","item_feastmeadows":"FEASTS & BAKED","item_frozenfuel":"DROPS D-F","item_gemstone_blue":"UPGRADE GEMS","item_gemstone_red":"UPGRADE GEMS","item_helmet_berserker":"ARMOR","item_helmet_lox":"ARMOR","item_helmet_mage_deepnorth":"ARMOR","item_helmet_root":"ARMOR","item_helmet_witchhat":"ARMOR","item_lantern":"UTILITY","item_legs_berserker":"ARMOR","item_legs_trollleather":"ARMOR","item_mace_silver":"WEAPONS & STAFFS","item_mead_frostres":"RESIST & OTHER MEADS","item_mead_hp_medium":"HEAL & STAMINA MEADS","item_mold_axe2h":"MOLDS & CASTS","item_mushroomomelette":"HEALTH FOOD","item_nornthread":"DROPS M-O","item_pickaxe_blackmetal":"TOOLS","item_shield_blackmetal":"WEAPONS & STAFFS","item_shield_flametal":"WEAPONS & STAFFS","item_shield_wood":"WEAPONS & STAFFS","item_spear_flint":"WEAPONS & STAFFS","item_staff_lightning":"WEAPONS & STAFFS","item_staffclusterbomb":"WEAPONS & STAFFS","item_staffredtroll":"WEAPONS & STAFFS","item_staffshield":"WEAPONS & STAFFS","item_staffskeleton":"WEAPONS & STAFFS","item_stagbreaker":"WEAPONS & STAFFS","item_sword_mistwalker":"WEAPONS & STAFFS","item_trinketblackdtamina":"CAPES & TRINKETS","item_trinketbronzestamina":"CAPES & TRINKETS","item_trinketcarapaceeitr":"CAPES & TRINKETS","item_trinketironhealth":"CAPES & TRINKETS","item_trinketsilverdamage":"CAPES & TRINKETS","item_trophy_barka":"TROPHIES A-D","item_trophy_brutebro":"TROPHIES A-D","item_trophy_fallenvalkyrie":"TROPHIES E-L","item_trophy_gjall":"TROPHIES E-L","item_trophy_leech":"TROPHIES E-L","item_trophy_seal":"TROPHIES M-Z","item_trophy_shamanbro":"TROPHIES M-Z","item_trophy_surtling":"TROPHIES M-Z","item_trophy_ulv":"TROPHIES M-Z","item_upgrader_tier1 $item_upgrader_weapon $item_upgrader_name":"IDOLS","item_upgrader_tier2 $item_upgrader_armor $item_upgrader_name":"IDOLS","item_upgrader_tier2 $item_upgrader_weapon $item_upgrader_name":"IDOLS","item_oatseeds":"CROP SEEDS","item_royaljelly":"HONEY & JELLY","item_blubber_cooked":"COOKED MEAT & FISH","item_mold_crossbow":"MOLDS & CASTS","item_trophy_jotunwarrior":"TROPHIES E-L","item_trophy_jotunwitch":"TROPHIES E-L"}};
+const GIST_ID = "f9a89353a0b318dc5380833b06871667";
+const GIST_USER = "AdriaanFox";
+const $ = s => document.querySelector(s);
+const norm = s => (s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+const fmt = n => n.toLocaleString("en-ZA").replace(/[  ]/g," ");
+const colorOf = sign => { const c = D.cells.find(x => x.s === sign); return c ? D.groups[c.g].c : "#ccc"; };
+const cellsOf = sign => D.cells.filter(x => x.s === sign);
+const signHtml = s => `<span class="sign" data-sign="${esc(s)}" style="color:${colorOf(s)}">${esc(s)}</span>`;
+const posHtml = s => cellsOf(s).map(c => `<span class="pos">Row <b>${c.r}</b> · chest <b>${c.c}</b></span>`).join("");
+function nameOf(code) {
+  if (D.names[code]) return D.names[code];
+  return code.replace(/^item_/, "").replace(/_/g, " ").replace(/\b\w/g, m => m.toUpperCase());
+}
+
+// live state
+let LIVE = null;          // {sign: {code: qty}}
+let UPDATED = null;
+
+function absorb(w) {
+  const by = {};
+  for (const ch of (w.chests || [])) {
+    const t = by[ch.sign] || (by[ch.sign] = {});
+    for (const [code, n] of Object.entries(ch.items || {})) t[code] = (t[code] || 0) + n;
+  }
+  LIVE = by; UPDATED = w.updated ? new Date(w.updated) : null;
+}
+async function load() {
+  const urls = [
+    `https://api.github.com/gists/${GIST_ID}`,
+    `https://gist.githubusercontent.com/${GIST_USER}/${GIST_ID}/raw/wall.json?t=${Date.now()}`
+  ];
+  for (const u of urls) {
+    try {
+      const r = await fetch(u, { cache: "no-store" });
+      if (!r.ok) continue;
+      let w;
+      if (u.includes("api.github.com")) { const g = await r.json(); w = JSON.parse(g.files["wall.json"].content); }
+      else w = await r.json();
+      if (!w.chests) continue;
+      absorb(w); showStatus(); rerender(); return;
+    } catch (e) { /* try the next one */ }
+  }
+  showStatus(true);
+}
+function ago(d) {
+  const m = Math.round((Date.now() - d.getTime()) / 60000);
+  if (m < 1) return "just now"; if (m === 1) return "1 minute ago"; if (m < 60) return m + " minutes ago";
+  const h = Math.round(m / 60); return h === 1 ? "1 hour ago" : h + " hours ago";
+}
+function showStatus(failed) {
+  const st = $("#status"), tx = $("#statusText");
+  st.classList.remove("live", "stale");
+  if (!LIVE) { tx.textContent = failed ? "Couldn't load the live count. Showing where things belong." : "Loading the latest chest count…"; return; }
+  const old = UPDATED && (Date.now() - UPDATED.getTime()) > 15 * 60000;
+  st.classList.add(old ? "stale" : "live");
+  tx.textContent = UPDATED ? "Live from the server · updated " + ago(UPDATED) + (old ? " (server may be off)" : "") : "Live from the server";
+}
+
+// wall
+const wall = $("#wall");
+function drawWall() {
+  let h = `<div></div>` + Array.from({length:24},(_,i)=>`<div class="cl">${i+1}</div>`).join("");
+  for (let r = 1; r <= 4; r++) {
+    h += `<div class="rl">${r}</div>`;
+    for (let c = 1; c <= 24; c++) {
+      const x = D.cells.find(k => k.r === r && k.c === c);
+      const inside = LIVE && LIVE[x.s] ? Object.values(LIVE[x.s]).reduce((a,b)=>a+b,0) : null;
+      h += `<div class="cell" tabindex="0" role="button" data-sign="${esc(x.s)}" style="color:${D.groups[x.g].c}" title="Row ${r}, chest ${c}">${esc(x.s)}${inside === 0 ? `<span class="n">empty</span>` : ""}</div>`;
+    }
+  }
+  wall.innerHTML = h;
+  $("#legend").innerHTML = D.groups.map(g => `<span><i style="background:${g.c}"></i>${esc(g.n)}</span>`).join("");
+}
+function highlight(signs, sel) {
+  const any = signs && signs.size;
+  document.querySelectorAll(".cell").forEach(el => {
+    const on = any && signs.has(el.dataset.sign);
+    el.classList.toggle("hit", !!on); el.classList.toggle("dim", !!any && !on);
+    el.classList.toggle("sel", !!sel && el.dataset.sign === sel);
+  });
+}
+
+// where is an item right now?
+function locate(code) {
+  const out = [];
+  if (LIVE) for (const [sign, items] of Object.entries(LIVE)) if (items[code]) out.push([sign, items[code]]);
+  return out.sort((a,b) => b[1]-a[1]);
+}
+function allCodes() {
+  const s = new Set(Object.keys(D.names));
+  if (LIVE) for (const items of Object.values(LIVE)) for (const c of Object.keys(items)) s.add(c);
+  return [...s];
+}
+
+let selected = null;
+function showChest(sign) {
+  selected = sign;
+  const v = $("#chestView");
+  const items = LIVE && LIVE[sign] ? Object.entries(LIVE[sign]).sort((a,b)=>b[1]-a[1]) : null;
+  const note = D.notes[sign];
+  v.innerHTML = `<div class="chest"><h2>${signHtml(sign)} ${posHtml(sign)}</h2>
+    ${note ? `<p class="note" style="color:var(--muted);margin:2px 0 0">For: ${esc(note)}</p>` : ""}
+    ${items === null ? `<p class="empty">No live count for this chest yet.</p>`
+      : items.length ? `<ul>${items.map(([c,n]) => `<li><span>${esc(nameOf(c))}</span><span>${fmt(n)}</span></li>`).join("")}</ul>`
+      : `<p class="empty">Empty right now.</p>`}</div>`;
+  v.hidden = false;
+  highlight(new Set([sign]), sign);
+}
+
+function search(q) {
+  const out = $("#results"), n = norm(q);
+  $("#chestView").hidden = true; selected = null;
+  if (!n) { out.innerHTML = ""; highlight(null); return; }
+  const words = n.split(" ");
+  const match = s => { const t = norm(s); return words.every(w => t.includes(w)); };
+  const codes = allCodes().filter(c => match(nameOf(c)));
+  const rows = codes.map(c => {
+    const at = locate(c), total = at.reduce((a,x)=>a+x[1],0);
+    return { c, name: nameOf(c), at, total, plan: D.plan[c] };
+  }).sort((a,b) => (norm(a.name).startsWith(n)?0:1)-(norm(b.name).startsWith(n)?0:1) || b.total-a.total).slice(0, 40);
+  const signs = [...new Set(D.cells.map(c => c.s))].filter(s => s !== "SPARE" && (match(s) || match(D.notes[s] || "")));
+  let h = "";
+  for (const s of signs) {
+    const tot = LIVE && LIVE[s] ? Object.values(LIVE[s]).reduce((a,b)=>a+b,0) : null;
+    h += `<div class="res"><span class="name">${signHtml(s)}</span><span class="qty">${tot === null ? "chest" : tot ? fmt(tot) + " items" : "empty"}</span>
+      <div class="where">${posHtml(s)}${D.notes[s] ? `<span class="pos">${esc(D.notes[s])}</span>` : ""}</div></div>`;
+  }
+  const hit = new Set(signs);
+  for (const r of rows) {
+    let where, note = "";
+    if (r.at.length) {
+      where = r.at.map(([s, q]) => `${signHtml(s)}${posHtml(s)}${r.at.length > 1 ? `<span class="pos">${fmt(q)}</span>` : ""}`).join("");
+      r.at.forEach(([s]) => hit.add(s));
+      if (r.plan && !r.at.some(([s]) => s === r.plan)) note = `Belongs in ${esc(r.plan)}.`;
+    } else if (r.plan) {
+      where = `${signHtml(r.plan)}${posHtml(r.plan)}`; hit.add(r.plan);
+      note = LIVE ? "None on the wall right now. This is where it goes." : "";
+    } else {
+      where = `<span class="pos">Not kept on the wall.</span>`;
+    }
+    h += `<div class="res"><span class="name">${esc(r.name)}</span><span class="qty">${LIVE ? (r.total ? fmt(r.total) + " stored" : "none") : ""}</span>
+      <div class="where">${where}</div>${note ? `<div class="note">${note}</div>` : ""}</div>`;
+  }
+  out.innerHTML = h || `<p class="empty">Nothing called “${esc(q)}”. Try a shorter word, or tap the wall below.</p>`;
+  highlight(hit);
+}
+function rerender() { drawWall(); const q = $("#q").value; if (selected) showChest(selected); else search(q); }
+
+$("#q").addEventListener("input", e => search(e.target.value));
+document.addEventListener("click", e => {
+  const s = e.target.closest("[data-sign]");
+  if (s) { showChest(s.dataset.sign); $("#chestView").scrollIntoView({behavior:"smooth", block:"nearest"}); }
+});
+wall.addEventListener("keydown", e => { const c = e.target.closest(".cell"); if ((e.key === "Enter" || e.key === " ") && c) { e.preventDefault(); showChest(c.dataset.sign); } });
+const EX = ["stone","bronze","molds","honey","eggs","wolf pelt","tools","eitr"];
+$("#ex").insertAdjacentHTML("beforeend", EX.map(x => `<button type="button">${x}</button>`).join(""));
+$("#ex").addEventListener("click", e => { if (e.target.tagName === "BUTTON") { $("#q").value = e.target.textContent; search(e.target.textContent); } });
+
+drawWall();
+$("#q").value = "bronze"; search("bronze");
+load();
+setInterval(load, 120000);
+setInterval(showStatus, 30000);
+</script>
+</body>
+</html>
