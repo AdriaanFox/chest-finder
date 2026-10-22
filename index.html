@@ -125,6 +125,38 @@ nav.jump a:hover,nav.jump a:focus-visible{border-color:var(--ember);outline:none
 .ok{color:var(--ok);font-weight:700} .short{color:var(--full);font-weight:700}
 .x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:18px;line-height:1}
 .verdict{font:800 18px var(--display);letter-spacing:.04em;margin:4px 0 8px}
+.ic{width:16px;height:16px;flex:none;vertical-align:-3px;margin-right:6px}
+.srv{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font-size:14.5px;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--bg2);border-radius:999px;padding:3px 11px;color:var(--fg)}
+.chip.p::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.recent{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;color:var(--muted);font-size:14.5px}
+.recent button{font:inherit;font-size:14px;color:var(--muted);background:none;border:1px dashed var(--line);border-radius:999px;padding:2px 10px;cursor:pointer}
+.recent button:hover{color:var(--fg);border-color:var(--ember)}
+.pins{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.pin{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;cursor:pointer}
+.pin:hover{border-color:var(--ember)}
+.pin .t{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.star{font:inherit;background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:2px 10px;cursor:pointer}
+.star.on{color:#1a1208;background:var(--ember);border-color:var(--ember)}
+.add{font:inherit;font-size:13.5px;background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:1px 10px;cursor:pointer;margin-left:auto}
+.add:hover{color:var(--fg);border-color:var(--ember)}
+.crow.done b,.crow.done .short,.crow.done .ok{text-decoration:line-through;opacity:.55}
+.got{display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--muted);cursor:pointer}
+.cell.pulse{animation:glow 2.4s ease-out 2}
+@keyframes glow{0%{box-shadow:0 0 0 2px #fff,0 0 22px rgba(255,255,255,.65)}100%{box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 2px 0 rgba(0,0,0,.4)}}
+.bigbtn{font:700 14px var(--body);border:1px solid var(--line);background:var(--bg2);color:var(--fg);border-radius:999px;padding:3px 12px;cursor:pointer}
+.bigbtn:hover{border-color:var(--ember)}
+body.tv .wrap>*:not(#wallSec){display:none!important}
+body.tv .wrap{max-width:none;padding:14px 18px;min-height:100vh;justify-content:center}
+body.tv #wallSec{display:flex;flex-direction:column;gap:10px}
+body.tv .wall{min-width:0;grid-template-columns:28px repeat(24,minmax(0,1fr));gap:5px}
+body.tv .cell{min-height:calc((100vh - 190px)/4);font-size:clamp(9px,.9vw,16px);overflow-wrap:normal;word-break:normal;hyphens:auto}
+body.tv #wallSec .sec-h{display:none}
+body.tv .wallbox{overflow:hidden}
+.tvbar{display:none;justify-content:space-between;align-items:center;gap:12px}
+body.tv .tvbar{display:flex}
+.tvbar h2{margin:0;font:900 clamp(22px,2.4vw,36px) var(--display);letter-spacing:.03em}
+.tvclock{font:800 clamp(20px,2vw,30px) var(--display);color:var(--ember);font-variant-numeric:tabular-nums}
 @media (max-width:640px){
   body{font-size:18px}
   h1{font-size:40px}
@@ -144,10 +176,13 @@ nav.jump a:hover,nav.jump a:focus-visible{border-color:var(--ember);outline:none
       <p class="eyebrow">KAAPHALLA · NUWE WERELD</p>
       <h1>Chest Finder</h1>
     </div>
-    <span class="status" id="status"><span class="dot"></span><span id="statusText">Loading the latest chest count…</span></span>
+    <div>
+      <span class="status" id="status"><span class="dot"></span><span id="statusText">Loading the latest chest count…</span></span>
+      <div class="srv" id="srv"></div>
+    </div>
   </header>
 
-  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#wallSec">Wall</a><a href="#catSec">Totals</a><a href="#chgSec">Changes</a><a href="#craftSec">Craft check</a><a href="#lists">Full &amp; out of place</a></nav>
+  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#wallSec">Wall</a><a href="#catSec">Totals</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
 
   <div class="stats" id="stats"></div>
 
@@ -156,7 +191,13 @@ nav.jump a:hover,nav.jump a:focus-visible{border-color:var(--ember);outline:none
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
     <input id="q" type="search" autocomplete="off" placeholder="bronze, molds, honey, wolf pelt…">
     <div class="examples" id="ex">Try:</div>
+    <div class="recent" id="recent"></div>
   </div>
+
+  <section id="pinSec" hidden>
+    <p class="label">PINNED CHESTS</p>
+    <div class="pins" id="pins"></div>
+  </section>
 
   <section id="chestView" hidden></section>
   <div id="results" aria-live="polite"></div>
@@ -164,8 +205,9 @@ nav.jump a:hover,nav.jump a:focus-visible{border-color:var(--ember);outline:none
   <section id="wallSec">
     <div class="sec-h">
       <p class="label">THE WALL · TAP A CHEST TO OPEN IT</p>
-      <div class="tabs"><button class="tab on" data-mode="cat" type="button">Categories</button><button class="tab" data-mode="heat" type="button">How full</button></div>
+      <div class="tabs"><button class="tab on" data-mode="cat" type="button">Categories</button><button class="tab" data-mode="heat" type="button">How full</button><button class="bigbtn" id="bigBtn" type="button">Big wall view</button></div>
     </div>
+    <div class="tvbar"><h2>Kaaphalla storage wall</h2><span class="status" id="tvStatus"></span><span class="tvclock" id="tvClock"></span><button class="bigbtn" id="tvExit" type="button">Exit (Esc)</button></div>
     <div class="wallbox"><div class="wall" id="wall"></div><div class="legend" id="legend"></div></div>
   </section>
 
@@ -183,7 +225,7 @@ nav.jump a:hover,nav.jump a:focus-visible{border-color:var(--ember);outline:none
   </section>
 
   <section id="craftSec">
-    <p class="label">CRAFT CHECK · WHAT DO WE HAVE FOR IT?</p>
+    <p class="label">CRAFT &amp; FETCH LIST · WHAT DO WE HAVE, WHAT TO GRAB</p>
     <div class="panel">
       <div class="craft-add">
         <input id="craftItem" type="text" autocomplete="off" placeholder="Add an ingredient, e.g. silver">
@@ -221,6 +263,30 @@ const stackOf = code => D.stacks[code] || (/(_|^)(sword|axe|bow|helmet|chest_|le
 const levelColor = f => f >= .9 ? "var(--full)" : f >= .7 ? "var(--warn)" : "var(--ok)";
 
 let LIVE = null, UPDATED = null, mode = "cat", selected = null;
+// ---------- icons, one per category ----------
+const ICONS = [
+  '<circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2.5"/>',                         // wood: log end
+  '<path d="M2 12h12l-2.5-6h-7z"/><path d="M5 6l1-2h4l1 2"/>',                               // metal: ingot
+  '<path d="M3 3c2 1 3 0 5 0s3 1 5 0c-1 3 0 4 0 6s-1 4-1 5c-2-1-3 0-4 0s-2-1-4 0c0-1-1-3-1-5s1-3 0-6z"/>', // hide
+  '<path d="M3 13c1-5 3-8 6-10M7 14c1-4 3-7 6-8"/><path d="M3 13l2-1M7 14l2-1"/>',            // drops: claws
+  '<path d="M2 12l1-7 3 3 2-5 2 5 3-3 1 7z"/>',                                               // bosses & gear: crown
+  '<path d="M8 15V5"/><path d="M8 7c-3-1-3-4-3-4s3 0 3 3M8 7c3-1 3-4 3-4s-3 0-3 3M8 11c-3-1-3-4-3-4s3 0 3 3M8 11c3-1 3-4 3-4s-3 0-3 3"/>', // wheat
+  '<path d="M2 8h12c0 3.5-2.7 6-6 6s-6-2.5-6-6z"/><path d="M6 6c0-1 1-1 1-2M9 6c0-1 1-1 1-2"/>' // bowl
+];
+const groupOfSign = sign => { const c = D.cells.find(x => x.s === sign); return c ? c.g : -1; };
+function icon(code, sign) {
+  let g = groupOfSign(D.plan[code] || sign || "");
+  if (g < 0) return "";
+  return `<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="${D.groups[g].c}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${ICONS[g] || ""}</svg>`;
+}
+const nm = (code, sign) => icon(code, sign) + esc(nameOf(code));
+
+// ---------- remembered stuff (this browser only) ----------
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+let RECENT = store.get("kaaphalla-recent", []), PINS = store.get("kaaphalla-pins", []);
+let PREV = null;     // previous totals per sign, for the glow
+let SERVER = null;
 // LIVE[sign] = {items:{code:qty}, slots, size, chests}
 function absorb(w) {
   const by = {};
@@ -232,11 +298,12 @@ function absorb(w) {
     t.slots += (typeof ch.used === "number") ? ch.used : slots;
     t.size += ch.size || CAP;
   }
-  LIVE = by; LAST_RAW = w; UPDATED = w.updated ? new Date(w.updated) : null;
+  if (LIVE) { PREV = {}; for (const [k, L] of Object.entries(LIVE)) PREV[k] = Object.values(L.items).reduce((a,b)=>a+b,0); }
+  LIVE = by; LAST_RAW = w; SERVER = w.server || null; UPDATED = w.updated ? new Date(w.updated) : null;
 }
 let LAST_RAW = null, chgLoaded = false;
 async function load() {
-  const urls = [`https://api.github.com/gists/${GIST_ID}`, `https://gist.githubusercontent.com/${GIST_USER}/${GIST_ID}/raw/wall.json?t=${Date.now()}`];
+  const urls = [`https://gist.githubusercontent.com/${GIST_USER}/${GIST_ID}/raw/wall.json?t=${Date.now()}`, `https://api.github.com/gists/${GIST_ID}`];
   for (const u of urls) {
     try {
       const r = await fetch(u, { cache: "no-store" }); if (!r.ok) continue;
@@ -283,23 +350,48 @@ function drawWall() {
     }
   }
   wall.innerHTML = h; wall.classList.toggle("heat", mode === "heat");
+  if (PREV && LIVE) wall.querySelectorAll(".cell").forEach(el => {
+    const L = LIVE[el.dataset.sign]; if (!L) return;
+    const now = Object.values(L.items).reduce((a,b)=>a+b,0);
+    if (PREV[el.dataset.sign] !== undefined && PREV[el.dataset.sign] !== now) el.classList.add("pulse");
+  });
   $("#legend").innerHTML = mode === "heat"
     ? `<span><i style="background:var(--ok)"></i>Room to spare</span><span><i style="background:var(--warn)"></i>Over 70% full</span><span><i style="background:var(--full)"></i>90% or more</span>`
     : D.groups.map(g => `<span><i style="background:${g.c}"></i>${esc(g.n)}</span>`).join("");
   if (selected) highlight(new Set([selected]), selected);
 }
+function tick(el, to) {
+  const from = +(el.dataset.v || to); el.dataset.v = to;
+  if (from === to || matchMedia("(prefers-reduced-motion: reduce)").matches) { el.textContent = fmt(to); return; }
+  const t0 = performance.now(), dur = 700;
+  const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(Math.round(from + (to - from) * e)); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function drawServer() {
+  const el = $("#srv");
+  if (!SERVER) { el.innerHTML = ""; return; }
+  const p = SERVER.players || [];
+  const up = SERVER.uptime >= 0 ? (SERVER.uptime >= 3600 ? Math.floor(SERVER.uptime/3600) + "h " + Math.floor(SERVER.uptime%3600/60) + "m" : Math.floor(SERVER.uptime/60) + " min") : null;
+  el.innerHTML = (p.length ? p.map(n => `<span class="chip p">${esc(n)}</span>`).join("") : `<span class="chip">Nobody online</span>`) +
+    (SERVER.day != null ? `<span class="chip">Day ${fmt(SERVER.day)}</span>` : "") +
+    (up ? `<span class="chip">Up ${up}</span>` : "") +
+    (SERVER.saved ? `<span class="chip">Saved ${ago(new Date(SERVER.saved))}</span>` : "");
+}
 function drawStats() {
-  if (!LIVE) { $("#stats").innerHTML = ["Items stored","Chests","Nearly full","Out of place"].map(t => `<div class="stat"><b>–</b><span>${t}</span></div>`).join(""); return; }
+  if (!LIVE) { if ($("#stats .stat b[data-k]")) return; $("#stats").innerHTML = ["Items stored","Chests","Nearly full","Out of place"].map(t => `<div class="stat"><b>–</b><span>${t}</span></div>`).join(""); return; }
   const signs = Object.keys(LIVE);
   const items = signs.reduce((a,s) => a + Object.values(LIVE[s].items).reduce((x,y)=>x+y,0), 0);
   const chests = signs.reduce((a,s) => a + LIVE[s].chests, 0);
   const full = signs.filter(s => s !== "SPARE" && fillOf(s) >= .9).length;
   const st = strays().length;
-  $("#stats").innerHTML =
-    `<div class="stat"><b>${fmt(items)}</b><span>Items stored</span></div>
-     <div class="stat"><b>${chests}</b><span>Chests on the wall</span></div>
-     <div class="stat click ${full ? "full" : ""}" data-jump="fullList"><b>${full}</b><span>Nearly full</span></div>
-     <div class="stat click ${st ? "warn" : ""}" data-jump="strayList"><b>${st}</b><span>Out of place</span></div>`;
+  if (!$("#stats .stat b[data-k]")) $("#stats").innerHTML =
+    `<div class="stat"><b data-k="items"></b><span>Items stored</span></div>
+     <div class="stat"><b data-k="chests"></b><span>Chests on the wall</span></div>
+     <div class="stat click" data-jump="fullList"><b data-k="full"></b><span>Nearly full</span></div>
+     <div class="stat click" data-jump="strayList"><b data-k="st"></b><span>Out of place</span></div>`;
+  const B = k => $(`#stats b[data-k="${k}"]`);
+  tick(B("items"), items); tick(B("chests"), chests); tick(B("full"), full); tick(B("st"), st);
+  B("full").parentNode.classList.toggle("full", full > 0); B("st").parentNode.classList.toggle("warn", st > 0);
 }
 function drawLists() {
   if (!LIVE) { $("#fullList").innerHTML = $("#strayList").innerHTML = ""; return; }
@@ -387,12 +479,12 @@ const saveCraft = () => { try { localStorage.setItem("kaaphalla-craft", JSON.str
 const haveOf = c => LIVE ? Object.values(LIVE).reduce((a, L) => a + (L.items[c] || 0), 0) : 0;
 function drawCraft() {
   const el = $("#craft");
-  if (!CRAFT.length) { el.innerHTML = `<p class="empty">Add what a recipe needs (look it up in the game's crafting menu or the wiki), and this shows what's on the wall and where. Your list stays in this browser.</p>`; return; }
+  if (!CRAFT.length) { el.innerHTML = `<p class="empty">Add what a recipe needs, or tap “+ List” on any search result. It shows what's on the wall and where; tick “got it” as you grab things. Your list stays in this browser.</p>`; return; }
   const rows = CRAFT.map(x => ({ ...x, have: haveOf(x.c) }));
   const missing = rows.filter(x => x.have < x.n);
   el.innerHTML = `<div class="verdict ${missing.length ? "short" : "ok"}">${missing.length ? missing.length + " of " + rows.length + " ingredients short" : "You have everything"}</div>` +
     rows.map((x, i) => { const at = LIVE ? Object.entries(LIVE).filter(([,L]) => L.items[x.c]).map(([s]) => s) : [];
-      return `<div class="crow"><b>${esc(nameOf(x.c))}</b><span class="${x.have >= x.n ? "ok" : "short"}">${fmt(x.have)} / ${fmt(x.n)}${x.have < x.n ? " · need " + fmt(x.n - x.have) : ""}</span><button class="x" data-del="${i}" type="button" aria-label="Remove">×</button>
+      return `<div class="crow ${x.got ? "done" : ""}"><b>${nm(x.c)}</b><span class="${x.have >= x.n ? "ok" : "short"}">${fmt(x.have)} / ${fmt(x.n)}${x.have < x.n ? " · need " + fmt(x.n - x.have) : ""}</span><span><label class="got"><input type="checkbox" data-got="${i}" ${x.got ? "checked" : ""}> got it</label> <button class="x" data-del="${i}" type="button" aria-label="Remove">×</button></span>
         <div class="w">${at.length ? at.map(s => signHtml(s) + posHtml(s)).join("") : (D.plan[x.c] ? `<span class="pos">None on the wall · goes in</span>${signHtml(D.plan[x.c])}` : `<span class="pos">None on the wall</span>`)}</div></div>`; }).join("");
 }
 let suggList = [], suggOn = 0;
@@ -412,6 +504,31 @@ function addCraft(code) {
   saveCraft(); $("#craftItem").value = ""; $("#sugg").hidden = true; drawCraft();
 }
 
+function remember(q) {
+  if (!q || q.length < 2) return;
+  RECENT = [q, ...RECENT.filter(x => x.toLowerCase() !== q.toLowerCase())].slice(0, 8);
+  store.set("kaaphalla-recent", RECENT); drawRecent();
+}
+function drawRecent() {
+  $("#recent").innerHTML = RECENT.length ? `Recent: ${RECENT.map(x => `<button type="button" data-recent="${esc(x)}">${esc(x)}</button>`).join("")}<button type="button" id="clearRecent" title="Forget recent searches">clear</button>` : "";
+}
+function drawPins() {
+  $("#pinSec").hidden = !PINS.length;
+  $("#pins").innerHTML = PINS.map(s => { const L = LIVE && LIVE[s]; const tot = L ? Object.values(L.items).reduce((a,b)=>a+b,0) : null;
+    return `<div class="pin" data-sign="${esc(s)}"><div class="t">${signHtml(s)}<span class="pos">${tot === null ? "" : tot ? fmt(tot) + " items" : "empty"}</span></div>${meterHtml(s)}</div>`; }).join("");
+}
+function bigView(on) {
+  document.body.classList.toggle("tv", on);
+  if (on) { selected = null; $("#chestView").hidden = true; highlight(null); mode = "heat"; document.querySelectorAll(".tab[data-mode]").forEach(b => b.classList.toggle("on", b.dataset.mode === "heat")); drawWall();
+    const el = document.documentElement; if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); }
+  else if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  tvTick();
+}
+function tvTick() {
+  $("#tvClock").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  $("#tvStatus").innerHTML = $("#status").innerHTML; $("#tvStatus").className = $("#status").className;
+}
+
 function highlight(signs, sel) {
   const any = signs && signs.size;
   document.querySelectorAll(".cell").forEach(el => {
@@ -424,14 +541,16 @@ function showChest(sign) {
   selected = sign;
   const v = $("#chestView"), L = LIVE && LIVE[sign], note = D.notes[sign];
   const items = L ? Object.entries(L.items).sort((a,b)=>b[1]-a[1]) : null;
-  v.innerHTML = `<div class="chest"><h2>${signHtml(sign)} ${posHtml(sign)}<button class="close" type="button" id="closeChest">Close</button></h2>
+  const pinned = PINS.includes(sign);
+  v.innerHTML = `<div class="chest"><h2>${signHtml(sign)} ${posHtml(sign)}<button class="star ${pinned ? "on" : ""}" type="button" id="pinChest">${pinned ? "★ Pinned" : "☆ Pin"}</button><button class="close" type="button" id="closeChest">Close</button></h2>
     ${note ? `<p class="note">For: ${esc(note)}</p>` : ""}${meterHtml(sign)}
     ${items === null ? `<p class="empty">No live count for this chest yet.</p>`
       : items.length ? `<ul>${items.map(([c,n]) => { const p = D.plan[c], stray = p && p !== sign && sign !== "SPARE";
-          return `<li class="${stray ? "stray" : ""}" title="${stray ? "Belongs in " + esc(p) : ""}"><span>${esc(nameOf(c))}</span><span>${fmt(n)}</span></li>`; }).join("")}</ul>`
+          return `<li class="${stray ? "stray" : ""}" title="${stray ? "Belongs in " + esc(p) : ""}"><span>${nm(c, sign)}</span><span>${fmt(n)}</span></li>`; }).join("")}</ul>`
       : `<p class="empty">Empty right now.</p>`}</div>`;
   v.hidden = false; highlight(new Set([sign]), sign);
   $("#closeChest").onclick = () => { selected = null; v.hidden = true; search($("#q").value); };
+  $("#pinChest").onclick = () => { PINS = PINS.includes(sign) ? PINS.filter(x => x !== sign) : [...PINS, sign]; store.set("kaaphalla-pins", PINS); drawPins(); showChest(sign); };
 }
 function search(q) {
   const out = $("#results"), n = norm(q);
@@ -458,14 +577,16 @@ function search(q) {
     } else if (r.plan) { where = `${signHtml(r.plan)}${posHtml(r.plan)}`; hit.add(r.plan); note = LIVE ? "None on the wall right now. This is where it goes." : ""; }
     else where = `<span class="pos">Not kept on the wall.</span>`;
     const main = r.at.length ? r.at[0][0] : r.plan;
-    h += `<div class="res"><div class="top"><span class="name">${esc(r.name)}</span><span class="qty">${LIVE ? (r.total ? `<b>${fmt(r.total)}</b> stored` : "none") : ""}</span></div>
-      <div class="where">${where}</div>${note ? `<div class="${cls}">${note}</div>` : ""}${main ? meterHtml(main) : ""}</div>`;
+    h += `<div class="res"><div class="top"><span class="name">${nm(r.c)}</span><span class="qty">${LIVE ? (r.total ? `<b>${fmt(r.total)}</b> stored` : "none") : ""}</span></div>
+      <div class="where">${where}<button class="add" type="button" data-addc="${esc(r.c)}">+ List</button></div>${note ? `<div class="${cls}">${note}</div>` : ""}${main ? meterHtml(main) : ""}</div>`;
   }
+  clearTimeout(search.t);
+  if (rows.length || signs.length) search.t = setTimeout(() => remember(q.trim()), 1500);
   out.innerHTML = h || `<p class="empty">Nothing called “${esc(q)}”. Try a shorter word, or tap the wall below.</p>`;
   if (!selected) highlight(hit);
 }
 function rerender() {
-  drawStats(); drawWall(); drawCats(); drawLists(); drawCraft();
+  drawStats(); drawServer(); drawWall(); drawCats(); drawLists(); drawCraft(); drawPins(); tvTick();
   if (selected) showChest(selected); search($("#q").value);
   if (LIVE && !chgLoaded) { chgLoaded = true; drawChanges(); }
 }
@@ -490,6 +611,18 @@ $("#craftItem").addEventListener("keydown", e => {
 $("#craftQty").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addCraft(); $("#craftItem").focus(); } });
 $("#sugg").addEventListener("click", e => { const d = e.target.closest("[data-c]"); if (d) { suggOn = suggList.indexOf(d.dataset.c); $("#craftItem").value = nameOf(d.dataset.c); $("#sugg").hidden = true; $("#craftQty").focus(); $("#craftQty").select(); } });
 $("#craftAddBtn").addEventListener("click", () => addCraft());
+$("#craft").addEventListener("change", e => { const c = e.target.closest("[data-got]"); if (c) { CRAFT[+c.dataset.got].got = c.checked; saveCraft(); drawCraft(); } });
+$("#recent").addEventListener("click", e => {
+  if (e.target.id === "clearRecent") { RECENT = []; store.set("kaaphalla-recent", RECENT); drawRecent(); return; }
+  const b = e.target.closest("[data-recent]"); if (b) { $("#q").value = b.dataset.recent; selected = null; $("#chestView").hidden = true; search(b.dataset.recent); } });
+$("#results").addEventListener("click", e => { const b = e.target.closest("[data-addc]"); if (!b) return; e.stopPropagation();
+  const c = b.dataset.addc; if (!CRAFT.find(x => x.c === c)) { CRAFT.push({ c, n: Math.min(stackOf(c), Math.max(1, haveOf(c))) }); saveCraft(); drawCraft(); }
+  b.textContent = "✓ On list"; });
+$("#bigBtn").addEventListener("click", () => bigView(true));
+$("#tvExit").addEventListener("click", () => bigView(false));
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("tv")) bigView(false); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("tv")) bigView(false); });
+setInterval(tvTick, 15000);
 $("#craftClear").addEventListener("click", () => { CRAFT = []; saveCraft(); drawCraft(); });
 $("#craft").addEventListener("click", e => { const b = e.target.closest("[data-del]"); if (b) { CRAFT.splice(+b.dataset.del, 1); saveCraft(); drawCraft(); } });
 
@@ -497,9 +630,12 @@ const EX = ["stone","bronze","molds","honey","eggs","wolf pelt","tools","eitr"];
 $("#ex").insertAdjacentHTML("beforeend", EX.map(x => `<button type="button">${x}</button>`).join(""));
 $("#ex").addEventListener("click", e => { if (e.target.tagName === "BUTTON") { $("#q").value = e.target.textContent; selected = null; $("#chestView").hidden = true; search(e.target.textContent); } });
 
+drawRecent();
 rerender();
 load();
 setInterval(load, 120000);
+// "What changed" refreshes itself every 6 minutes (GitHub limits how often a browser may ask)
+setInterval(() => { if (chgLoaded && !document.hidden) drawChanges(); }, 360000);
 setInterval(showStatus, 30000);
 </script>
 </body>
