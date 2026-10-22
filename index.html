@@ -847,8 +847,19 @@ function drawMap() {
 // ---------- portal network: the map fades away and the portals become a subway map ----------
 const NETCOL = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#9085e9", "#e66767", "#2fb5c9"];
 function drawNetwork(S, W, H, d, map) {
-  const ps = (map && map.portals) || [];
-  mctx.fillStyle = "rgba(7,9,13,.86)"; mctx.fillRect(0, 0, W, H);
+  const ps = (map && map.portals) || [], now = performance.now(), calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // the world turns into a dim blue blueprint behind the lines
+  mctx.save();
+  mctx.globalCompositeOperation = "saturation"; mctx.fillStyle = "#808080"; mctx.fillRect(0, 0, W, H);
+  mctx.globalCompositeOperation = "multiply"; mctx.fillStyle = "#24365a"; mctx.fillRect(0, 0, W, H);
+  mctx.globalCompositeOperation = "source-over"; mctx.fillStyle = "rgba(4,6,12,.42)"; mctx.fillRect(0, 0, W, H);
+  const vg = mctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .2, W / 2, H / 2, Math.max(W, H) * .75);
+  vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.7)"); mctx.fillStyle = vg; mctx.fillRect(0, 0, W, H);
+  // faint grid
+  mctx.strokeStyle = "rgba(120,160,255,.06)"; mctx.lineWidth = 1;
+  const gs = 48 * d, gx = ((M.ox % gs) + gs) % gs, gy = ((M.oy % gs) + gs) % gs;
+  mctx.beginPath(); for (let x = gx; x < W; x += gs) { mctx.moveTo(x, 0); mctx.lineTo(x, H); } for (let y = gy; y < H; y += gs) { mctx.moveTo(0, y); mctx.lineTo(W, y); } mctx.stroke();
+  mctx.restore();
   // portals within 60 m of each other are one station (a hub)
   const st = [];
   for (const p of ps) { let s2 = st.find(s => Math.hypot(s.x - p.x, s.z - p.z) < 60); if (!s2) { s2 = { x: p.x, z: p.z, ps: [] }; st.push(s2); } s2.ps.push(p); }
@@ -856,52 +867,83 @@ function drawNetwork(S, W, H, d, map) {
   const lk = links(), lines = lk.map(([a, b], i) => ({ a: stOf(a), b: stOf(b), name: a.t, col: NETCOL[i % NETCOL.length] }));
   // octilinear route: a diagonal leg, then a straight leg (like a printed subway map)
   const route = (x1, y1, x2, y2) => { const dx = x2 - x1, dy = y2 - y1, k = Math.min(Math.abs(dx), Math.abs(dy));
-    return Math.abs(dx) > Math.abs(dy) ? [[x1, y1], [x1 + Math.sign(dx) * k, y1 + Math.sign(dy) * k], [x2, y2]] : [[x1, y1], [x1 + Math.sign(dx) * k, y1 + Math.sign(dy) * k], [x2, y2]]; };
-  // spread parallel lines that leave the same hub so they don't sit on top of each other
+    return [[x1, y1], [x1 + Math.sign(dx) * k, y1 + Math.sign(dy) * k], [x2, y2]]; };
   const fan = {}; lines.forEach(l => { for (const s2 of [l.a, l.b]) (fan[st.indexOf(s2)] = fan[st.indexOf(s2)] || []).push(l); });
   const off = (l, s2) => { const g = fan[st.indexOf(s2)]; if (!g || g.length < 2) return 0; return (g.indexOf(l) - (g.length - 1) / 2) * 6 * d; };
-  mctx.save(); mctx.lineCap = "round"; mctx.lineJoin = "round";
   const paths = lines.map(l => { let [x1, y1] = S(l.a.x, l.a.z), [x2, y2] = S(l.b.x, l.b.z); const o1 = off(l, l.a), o2 = off(l, l.b);
     x1 += o1; y1 += o1 * .5; x2 += o2; y2 += o2 * .5; return { l, pts: route(x1, y1, x2, y2) }; });
-  for (const pass of [0, 1]) for (const { l, pts } of paths) {
-    const hot = M.hl && l.a.ps.concat(l.b.ps).some(p => p.t === l.name && p.x === M.hl.x && p.z === M.hl.z);
-    mctx.strokeStyle = pass ? l.col : "#05070a"; mctx.lineWidth = (pass ? (hot ? 7 : 5) : (hot ? 11 : 9)) * d;
-    if (pass && hot) { mctx.shadowColor = l.col; mctx.shadowBlur = 16 * d; } else mctx.shadowBlur = 0;
-    mctx.beginPath(); pts.forEach(([x, y], i) => i ? mctx.lineTo(x, y) : mctx.moveTo(x, y)); mctx.stroke();
+  const along = (pts, t) => { const s0 = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]), s1 = Math.hypot(pts[2][0] - pts[1][0], pts[2][1] - pts[1][1]), tot = s0 + s1 || 1;
+    let u = ((t % 1) + 1) % 1 * tot, i = u > s0 ? 1 : 0; if (i) u -= s0; const f = u / ((i ? s1 : s0) || 1);
+    return [pts[i][0] + (pts[i+1][0] - pts[i][0]) * f, pts[i][1] + (pts[i+1][1] - pts[i][1]) * f]; };
+  const hotOf = l => M.hl && l.a.ps.concat(l.b.ps).some(p => p.t === l.name && p.x === M.hl.x && p.z === M.hl.z);
+  const anyHot = lines.some(hotOf);
+  mctx.save(); mctx.lineCap = "round"; mctx.lineJoin = "round";
+  const stroke = pts => { mctx.beginPath(); pts.forEach(([x, y], i) => i ? mctx.lineTo(x, y) : mctx.moveTo(x, y)); mctx.stroke(); };
+  for (const { l, pts } of paths) {           // neon tubes: soft glow, bright core, white filament
+    const hot = hotOf(l), dim = anyHot && !hot ? .3 : 1;
+    mctx.globalAlpha = dim;
+    mctx.shadowColor = l.col; mctx.shadowBlur = (hot ? 26 : 14) * d; mctx.strokeStyle = l.col; mctx.lineWidth = (hot ? 8 : 6) * d; stroke(pts);
+    mctx.shadowBlur = 0; mctx.strokeStyle = "rgba(255,255,255,.55)"; mctx.lineWidth = 1.4 * d; stroke(pts);
+    // energy pulses flowing along the line
+    if (!calm) { mctx.setLineDash([2 * d, 22 * d]); mctx.lineDashOffset = -now / 40; mctx.strokeStyle = "rgba(255,255,255,.9)"; mctx.lineWidth = 3 * d; stroke(pts); mctx.setLineDash([]); }
   }
-  mctx.shadowBlur = 0;
-  // travellers riding each line
+  mctx.globalAlpha = 1;
+  // travellers: a comet with a fading tail, going both ways
   for (const { l, pts } of paths) {
-    const segs = [Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]), Math.hypot(pts[2][0] - pts[1][0], pts[2][1] - pts[1][1])], tot = segs[0] + segs[1] || 1;
-    let t = ((performance.now() / 3200) + (Math.abs(l.a.x + l.b.z) % 97) / 97) % 1 * tot, i = t > segs[0] ? 1 : 0; if (i) t -= segs[0];
-    const f = t / (segs[i] || 1), x = pts[i][0] + (pts[i+1][0] - pts[i][0]) * f, y = pts[i][1] + (pts[i+1][1] - pts[i][1]) * f;
-    mctx.fillStyle = "#fff"; mctx.beginPath(); mctx.arc(x, y, 2.4 * d, 0, Math.PI * 2); mctx.fill();
+    if (anyHot && !hotOf(l)) continue;
+    const seed = (Math.abs(l.a.x + l.b.z) % 97) / 97;
+    for (const dir of [1, -1]) {
+      const t0 = dir * now / 3600 + seed + (dir < 0 ? .5 : 0);
+      for (let k = 7; k >= 0; k--) { const [x, y] = along(pts, t0 - dir * k * .012); mctx.fillStyle = k ? `rgba(255,255,255,${(1 - k / 8) * .5})` : "#fff";
+        if (!k) { mctx.shadowColor = l.col; mctx.shadowBlur = 12 * d; } mctx.beginPath(); mctx.arc(x, y, (k ? 2.2 - k * .2 : 3) * d, 0, Math.PI * 2); mctx.fill(); mctx.shadowBlur = 0; }
+    }
   }
   // stations
   const fs = 12 * d; mctx.textAlign = "center";
-  const lab = (t, x, y, c, f2) => { mctx.font = `${f2 || 700} ${fs}px "Alegreya Sans", sans-serif`; mctx.lineWidth = 3.5 * d; mctx.strokeStyle = "rgba(0,0,0,.9)"; mctx.strokeText(t, x, y); mctx.fillStyle = c; mctx.fillText(t, x, y); };
+  const lab = (t, x, y, c, w) => { mctx.font = `${w || 700} ${fs}px "Alegreya Sans SC", "Alegreya Sans", sans-serif`; mctx.lineWidth = 4 * d; mctx.strokeStyle = "rgba(2,4,8,.92)"; mctx.strokeText(t, x, y); mctx.fillStyle = c; mctx.fillText(t, x, y); };
+  const pulse = (now / 1600) % 1;
   for (const s2 of st) {
     const [x, y] = S(s2.x, s2.z); if (x < -40 || y < -40 || x > W + 40 || y > H + 40) continue;
     const linked = s2.ps.filter(p => lk.some(g => g.includes(p))), hub = s2.ps.length > 1, atBase = base && Math.hypot(base.x - s2.x, base.z - s2.z) < 120;
     const on = M.hl && s2.ps.some(p => p.x === M.hl.x && p.z === M.hl.z);
-    if (hub) {   // interchange: a white capsule with a black ring
-      const r = Math.min(16, 6 + s2.ps.length * .8) * d;
-      mctx.fillStyle = "#fff"; mctx.strokeStyle = "#05070a"; mctx.lineWidth = 3 * d; mctx.beginPath(); mctx.arc(x, y, r, 0, Math.PI * 2); mctx.fill(); mctx.stroke();
-      mctx.fillStyle = "#05070a"; mctx.font = `800 ${11 * d}px "Alegreya Sans", sans-serif`; mctx.fillText(String(s2.ps.length), x, y + 4 * d);
-      lab(atBase ? "Base hub" : "Hub", x, y - r - 6 * d, atBase ? "#f2a93b" : "#ffffff");
+    if (hub) {      // interchange: glowing core with a slowly turning rune ring
+      const r = Math.min(16, 7 + s2.ps.length * .7) * d, gold = atBase ? "#f2a93b" : "#bfe0ff";
+      if (!calm) { mctx.strokeStyle = gold; mctx.globalAlpha = (1 - pulse) * .6; mctx.lineWidth = 2 * d; mctx.beginPath(); mctx.arc(x, y, r + pulse * 22 * d, 0, Math.PI * 2); mctx.stroke(); mctx.globalAlpha = 1; }
+      mctx.save(); mctx.translate(x, y); mctx.rotate(calm ? 0 : now / 4000); mctx.setLineDash([5 * d, 4 * d]); mctx.strokeStyle = gold; mctx.lineWidth = 1.6 * d;
+      mctx.beginPath(); mctx.arc(0, 0, r + 6 * d, 0, Math.PI * 2); mctx.stroke(); mctx.restore(); mctx.setLineDash([]);
+      mctx.shadowColor = gold; mctx.shadowBlur = 20 * d; mctx.fillStyle = "#fff"; mctx.strokeStyle = gold; mctx.lineWidth = 3 * d;
+      mctx.beginPath(); mctx.arc(x, y, r, 0, Math.PI * 2); mctx.fill(); mctx.stroke(); mctx.shadowBlur = 0;
+      mctx.fillStyle = "#0a0d14"; mctx.font = `800 ${12 * d}px "Alegreya Sans", sans-serif`; mctx.fillText(String(s2.ps.length), x, y + 4 * d);
+      lab(atBase ? "BASE HUB" : "HUB", x, y - r - 12 * d, gold, 800);
     } else {
-      const p = s2.ps[0], line = lines.find(l => l.a === s2 || l.b === s2);
-      mctx.fillStyle = linked.length ? "#fff" : "#2a2f36"; mctx.strokeStyle = line ? line.col : "#6b7480"; mctx.lineWidth = 3 * d;
-      mctx.beginPath(); mctx.arc(x, y, (on ? 7 : 5) * d, 0, Math.PI * 2); mctx.fill(); mctx.stroke();
-      if (M.labels || on) lab(p.t || "(no name)", x, y - 10 * d, linked.length ? "#ffffff" : "#8d96a0", linked.length ? 700 : 500);
+      const p = s2.ps[0], line = lines.find(l => l.a === s2 || l.b === s2), col = line ? line.col : "#6b7480";
+      if (linked.length && !calm) { mctx.strokeStyle = col; mctx.globalAlpha = (1 - ((pulse + (Math.abs(p.x) % 7) / 7) % 1)) * .7; mctx.lineWidth = 1.5 * d;
+        mctx.beginPath(); mctx.arc(x, y, (6 + ((pulse + (Math.abs(p.x) % 7) / 7) % 1) * 14) * d, 0, Math.PI * 2); mctx.stroke(); mctx.globalAlpha = 1; }
+      mctx.shadowColor = col; mctx.shadowBlur = linked.length ? 14 * d : 0;
+      mctx.fillStyle = linked.length ? "#fff" : "#1d222a"; mctx.strokeStyle = col; mctx.lineWidth = 3 * d;
+      mctx.beginPath(); mctx.arc(x, y, (on ? 7.5 : 5.5) * d, 0, Math.PI * 2); mctx.fill(); mctx.stroke(); mctx.shadowBlur = 0;
+      if (M.labels || on) lab(p.t || "(no name)", x, y - 12 * d, linked.length ? "#ffffff" : "#7d8794", linked.length ? 800 : 500);
     }
   }
-  // key
-  mctx.textAlign = "left"; mctx.font = `600 ${11.5 * d}px "Alegreya Sans", sans-serif`; mctx.fillStyle = "rgba(220,226,232,.85)";
-  mctx.fillText(`${lk.length} linked pairs · ${ps.length - lk.length * 2} portal${ps.length - lk.length * 2 === 1 ? "" : "s"} without a partner (grey)`, 12 * d, H - 12 * d);
+  mctx.restore();
+  // title and line key
+  mctx.save(); mctx.textAlign = "right";
+  mctx.font = `800 ${15 * d}px "Alegreya Sans SC", "Alegreya Sans", sans-serif`; mctx.fillStyle = "#f2a93b"; mctx.shadowColor = "rgba(242,169,59,.6)"; mctx.shadowBlur = 10 * d;
+  mctx.fillText("KAAPHALLA PORTAL NETWORK", W - 14 * d, 58 * d); mctx.shadowBlur = 0;
+  mctx.font = `600 ${11.5 * d}px "Alegreya Sans", sans-serif`; mctx.fillStyle = "rgba(220,228,240,.8)";
+  const lone = ps.length - lk.length * 2;
+  mctx.fillText(`${lk.length} lines · ${ps.length} portals${lone ? ` · ${lone} without a partner` : ""}`, W - 14 * d, 75 * d);
+  mctx.textAlign = "left"; const kx = 14 * d; let ky = H - 16 * d - Math.min(lines.length, 10) * 17 * d;
+  for (const l of lines.slice(0, 10)) {
+    mctx.fillStyle = "rgba(4,6,12,.6)"; mctx.fillRect(kx - 4 * d, ky - 11 * d, 150 * d, 16 * d);
+    mctx.shadowColor = l.col; mctx.shadowBlur = 8 * d; mctx.strokeStyle = l.col; mctx.lineWidth = 4 * d; mctx.lineCap = "round";
+    mctx.beginPath(); mctx.moveTo(kx, ky - 3 * d); mctx.lineTo(kx + 18 * d, ky - 3 * d); mctx.stroke(); mctx.shadowBlur = 0;
+    mctx.fillStyle = "#e9eef5"; mctx.font = `700 ${11.5 * d}px "Alegreya Sans", sans-serif`; mctx.fillText(l.name.length > 20 ? l.name.slice(0, 19) + "…" : l.name, kx + 26 * d, ky + 1 * d);
+    ky += 17 * d;
+  }
+  if (lines.length > 10) { mctx.fillStyle = "rgba(220,228,240,.7)"; mctx.fillText(`+ ${lines.length - 10} more lines`, kx, ky + 1 * d); }
   mctx.restore();
 }
-
 // portals with the same name are linked (exactly two of them)
 function links() {
   const ps = (LAST_RAW && LAST_RAW.map && LAST_RAW.map.portals) || [], by = {};
