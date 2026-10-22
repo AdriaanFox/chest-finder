@@ -159,8 +159,8 @@ body.tv .tvbar{display:flex}
 .tvclock{font:800 clamp(20px,2vw,30px) var(--display);color:var(--ember);font-variant-numeric:tabular-nums}
 .mapwrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px}
 @media (max-width:860px){.mapwrap{grid-template-columns:1fr}}
-.skychip{position:absolute;top:10px;right:10px;z-index:3;display:flex;flex-direction:column;align-items:flex-end;gap:1px;padding:7px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);
-  background:rgba(10,14,20,.55);backdrop-filter:blur(6px);color:#f3efe6;font:inherit;cursor:pointer;text-align:right}
+.skychip{position:absolute;left:10px;bottom:10px;z-index:2;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:7px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);
+  background:rgba(10,14,20,.55);backdrop-filter:blur(6px);color:#f3efe6;font:inherit;cursor:pointer;text-align:left}
 .skychip b{font:800 15px var(--display);letter-spacing:.04em} .skychip span{font-size:12.5px;color:#c9d2da}
 .skychip:hover,.skychip:focus-visible{border-color:var(--ember);outline:none}
 .basebar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
@@ -201,7 +201,7 @@ body.tv .tvbar{display:flex}
 .mapbox{position:relative;border:1px solid var(--wood-line);border-radius:14px;overflow:hidden;background:#0a1016;touch-action:none;height:min(72vh,640px)}
 #map{display:block;width:100%;height:100%;cursor:grab}
 #map.drag{cursor:grabbing}
-.mapctl{position:absolute;top:10px;left:10px;display:flex;flex-wrap:wrap;gap:6px}
+.mapctl{position:absolute;top:10px;left:10px;z-index:4;display:flex;flex-wrap:wrap;gap:6px}
 .mapctl button{font:700 13.5px var(--body);border:1px solid var(--line);background:rgba(15,19,17,.85);color:var(--fg);border-radius:999px;padding:4px 11px;cursor:pointer}
 .mapctl button.on{background:var(--ember);color:#1a1208;border-color:var(--ember)}
 .maphint{position:absolute;right:10px;bottom:8px;font-size:12.5px;color:#9aa59e;background:rgba(15,19,17,.7);padding:2px 8px;border-radius:6px}
@@ -868,10 +868,15 @@ mapCv.addEventListener("wheel", e => { e.preventDefault(); const r = mapCv.getBo
 mapCv.addEventListener("dblclick", e => { const r = mapCv.getBoundingClientRect(), d = window.devicePixelRatio || 1; zoomAt((e.clientX - r.left) * d, (e.clientY - r.top) * d, 2); });
 document.querySelector(".mapctl").addEventListener("click", e => {
   const b = e.target.closest("[data-mc]"); if (!b) return; const k = b.dataset.mc;
+  if (M.view3d && T3.cam && (k === "fit" || k === "base")) {
+    if (k === "base") { const b = (LAST_RAW && LAST_RAW.map && LAST_RAW.map.base) || { x: 335, z: -465 }; fly3D({ x: b.x, z: b.z, base: true }); }
+    else fly3D({ x: 0, z: 0, base: true, far: true });
+    return;
+  }
   if (k === "fit") fitView("fit"); else if (k === "base") fitView("base");
   else if (k === "3d") { set3D(!M.view3d); b.classList.toggle("on", M.view3d); return; }
   else if (k === "labels") { M.labels = !M.labels; b.classList.toggle("on", M.labels); }
-  else if (k === "pins") { M.pins = !M.pins; b.classList.toggle("on", M.pins); }
+  else if (k === "pins") { M.pins = !M.pins; b.classList.toggle("on", M.pins); if (T3.pinGroup) T3.pinGroup.visible = M.pins; }
   drawMap();
 });
 $("#plist").addEventListener("click", e => { const r = e.target.closest("[data-px]"); if (!r) return;
@@ -976,15 +981,32 @@ function build3D(box, HN, R, H, water) {
   const target = P(base.x, base.z, 0);
   cam.position.set(target.x + 120, target.y + 160, target.z + 220);
   const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.target.copy(target); ctl.enableDamping = true; ctl.maxPolarAngle = Math.PI * .47; ctl.minDistance = 20; ctl.maxDistance = 1800; ctl.update();
-  Object.assign(T3, { cam, ctl, P, scene, pmeshes, tubes, THREE, anim: null, fx: [] });
+  // map pins from the cartography table: a coloured ball on a stick, named ones get a label
+  const pinGroup = new THREE.Group(), pinMeshes = [];
+  for (const p of (map && map.pins) || []) {
+    const col = new THREE.Color(PINCOL[p.k] || "#ffffff"), name = pinName(p.t) || "";
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(.25, .25, 7, 6), new THREE.MeshBasicMaterial({ color: 0x222222 }));
+    const at = P(p.x, p.z, 0); stick.position.set(at.x, at.y + 3.5, at.z); pinGroup.add(stick);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(2.3, 14, 14), new THREE.MeshBasicMaterial({ color: col, transparent: !!p.c, opacity: p.c ? .5 : 1 }));
+    ball.position.set(at.x, at.y + 8, at.z); ball.userData = { x: p.x, z: p.z, t: name || "Pin", pin: true }; pinGroup.add(ball); pinMeshes.push(ball);
+    if (name) {
+      const c = document.createElement("canvas"); c.width = 512; c.height = 96; const g = c.getContext("2d");
+      g.font = '700 50px "Alegreya Sans", sans-serif'; g.textAlign = "center"; g.lineWidth = 9; g.strokeStyle = "rgba(0,0,0,.85)"; g.fillStyle = "#f1ead9";
+      g.strokeText(name, 256, 66); g.fillText(name, 256, 66);
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+      sp.scale.set(26, 4.9, 1); sp.position.set(at.x, at.y + 14, at.z); pinGroup.add(sp);
+    }
+  }
+  pinGroup.visible = M.pins; scene.add(pinGroup);
+  Object.assign(T3, { cam, ctl, P, scene, pmeshes, tubes, pinGroup, pinMeshes, THREE, anim: null, fx: [] });
   // click a portal diamond in 3D to fly to it
   const ray = new THREE.Raycaster(), mv = new THREE.Vector2(); let down = null;
   renderer.domElement.addEventListener("pointerdown", e => down = [e.clientX, e.clientY]);
   renderer.domElement.addEventListener("pointerup", e => {
     if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
     const r = renderer.domElement.getBoundingClientRect(); mv.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
-    ray.setFromCamera(mv, cam); const hit = ray.intersectObjects(pmeshes)[0];
-    if (hit) { const p = hit.object.userData; M.hl = { x: p.x, z: p.z }; drawPortals(); fly3D(p); }
+    ray.setFromCamera(mv, cam); const hit = ray.intersectObjects(pinGroup.visible ? pmeshes.concat(pinMeshes) : pmeshes)[0];
+    if (hit) { const p = hit.object.userData; if (!p.pin) { M.hl = { x: p.x, z: p.z }; drawPortals(); } fly3D(p); }
   });
   const resize = () => { if (!T3.r) return; const w = box.clientWidth, h = box.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); };
   window.addEventListener("resize", resize);
@@ -1126,6 +1148,9 @@ function skyChip(box, onToggle) {
 
 // ---------- the base in 3D (building pieces sent by the server) ----------
 const B3 = {};
+const ROOF_FLIP = new Set();
+// things the server counts as buildable that aren't buildings (berry bushes, crops, pickables)
+const NOT_BUILDING = /^pickable_|bush|sapling|^vine|^(oat|barley|flax|carrot|turnip|onion|cloudberry|pukeberries|fernashlands|magecap|jotunpuffs|beech_small|fir_small|pine_small|birch_small|oak_small)$/;
 const prettyPart = n => (n || "").replace(/^piece_/, "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 function partLook(n) {
   n = (n || "").toLowerCase();
@@ -1145,6 +1170,13 @@ function partGeo(THREE, sh) {
   const b = sh.b, s = sh.s || [];
   const box = () => { const g = new THREE.BoxGeometry(Math.max(.06, b[3] - b[0]), Math.max(.06, b[4] - b[1]), Math.max(.06, b[5] - b[2]));
     g.translate((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, -(b[2] + b[5]) / 2); return g; };
+  // roofs (no snap points sent): a sloped slab across the box, low at the back (-z) and high at the front (+z)
+  if (s.length < 9 && /roof/.test(sh.n) && !/wall_roof|top|corner|cap/.test(sh.n) && !ROOF_FLIP.has("all")) {
+    const zl = ROOF_FLIP.has(sh.n) ? -b[2] : -b[5], zh = ROOF_FLIP.has(sh.n) ? -b[5] : -b[2], yl = b[1], yh = b[4];
+    const len = Math.hypot(zh - zl, yh - yl), g = new THREE.BoxGeometry(Math.max(.06, b[3] - b[0]), .16, len);
+    g.rotateX(-Math.atan2(yh - yl, zh - zl));
+    g.translate((b[0] + b[3]) / 2, (yl + yh) / 2, (zl + zh) / 2); return g;
+  }
   const pts = [];
   for (let i = 0; i + 2 < s.length; i += 3) { const p = new THREE.Vector3(s[i], s[i+1], -s[i+2]); if (!pts.some(q => q.distanceTo(p) < .05)) pts.push(p); }
   try {
@@ -1182,7 +1214,7 @@ function drawBaseSec() {
   const b = LAST_RAW && LAST_RAW.build, info = $("#baseInfo"), btn = $("#baseBtn");
   if (!b || !b.parts) { btn.disabled = true; info.textContent = LAST_RAW ? "The base model arrives once the server runs Wall Live 1.6." : "Waiting for the server…"; return; }
   btn.disabled = false;
-  info.textContent = `${fmt(b.parts.length)} building pieces within ${b.r} m of the storage wall · updates every 10 minutes`;
+  info.textContent = `${fmt(b.parts.filter(p => b.shapes[p[0]] && !NOT_BUILDING.test(b.shapes[p[0]].n)).length)} building pieces within ${b.r} m of the storage wall · updates every 10 minutes`;
   const sig = b.parts.length + ":" + b.shapes.length + ":" + JSON.stringify(b.parts[b.parts.length - 1] || "");
   if (B3.r && B3.sig !== sig) buildBase(true);
   B3.sig = sig;
@@ -1229,7 +1261,8 @@ function buildBase(keepCam) {
   if (G.some(h => h < water)) { const sea = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshLambertMaterial({ color: 0x2d6a8e, transparent: true, opacity: .7 }));
     sea.rotation.x = -Math.PI / 2; sea.position.y = water; scene.add(sea); }
   // pieces: one instanced mesh per kind
-  const byShape = {}; for (const p of data.parts) (byShape[p[0]] = byShape[p[0]] || []).push(p);
+  const parts = data.parts.filter(p => data.shapes[p[0]] && !NOT_BUILDING.test(data.shapes[p[0]].n));
+  const byShape = {}; for (const p of parts) (byShape[p[0]] = byShape[p[0]] || []).push(p);
   const meshes = [], q = new THREE.Quaternion(), m4 = new THREE.Matrix4(), one = new THREE.Vector3(1, 1, 1), lights = [];
   for (const [si, list] of Object.entries(byShape)) {
     const sh = data.shapes[si]; if (!sh) continue;
@@ -1247,9 +1280,10 @@ function buildBase(keepCam) {
   }
   const fireLights = lights.map(v => { const l = new THREE.PointLight(0xff8a3c, 0, 14, 2); l.position.copy(v); scene.add(l); return l; });
   // look at the middle of the buildings
-  const ctr = new THREE.Vector3(); data.parts.forEach(p => ctr.add(new THREE.Vector3(p[1], p[2], -p[3]))); if (data.parts.length) ctr.multiplyScalar(1 / data.parts.length);
+  const ctr = new THREE.Vector3(); parts.forEach(p => ctr.add(new THREE.Vector3(p[1], p[2], -p[3]))); if (parts.length) ctr.multiplyScalar(1 / parts.length);
+  const ds = parts.map(p => Math.hypot(p[1] - ctr.x, -p[3] - ctr.z)).sort((a, b) => a - b), spread = Math.max(15, ds[Math.floor(ds.length * .9)] || 20);
   const ctl = new THREE.OrbitControls(cam, renderer.domElement);
-  if (old) { cam.position.copy(old.p); ctl.target.copy(old.t); } else { ctl.target.copy(ctr); cam.position.set(ctr.x + 48, ctr.y + 38, ctr.z + 58); }
+  if (old) { cam.position.copy(old.p); ctl.target.copy(old.t); } else { ctl.target.copy(ctr); cam.position.set(ctr.x + spread * 1.3, ctr.y + spread * 1.15, ctr.z + spread * 1.6); }
   ctl.enableDamping = true; ctl.maxPolarAngle = Math.PI * .49; ctl.minDistance = 4; ctl.maxDistance = 220;
   ctl.autoRotate = B3.spin !== false; ctl.autoRotateSpeed = .5;
   ctl.addEventListener("start", () => { if (ctl.autoRotate) { ctl.autoRotate = false; B3.spin = false; $("#spinBtn").classList.remove("on"); } });
@@ -1402,7 +1436,8 @@ function fly3D(p) {
   const { cam, ctl, P, THREE } = T3;
   const target = P(p.x, p.z, 6);
   const dir = cam.position.clone().sub(ctl.target); dir.y = 0; if (dir.length() < 1) dir.set(0, 0, 1); dir.normalize();
-  const endPos = target.clone().add(dir.multiplyScalar(165)).add(new THREE.Vector3(0, 115, 0));
+  const endPos = p.far ? new THREE.Vector3(0, 900, 700) : target.clone().add(dir.multiplyScalar(165)).add(new THREE.Vector3(0, 115, 0));
+  if (p.far) target.set(0, 0, 0);
   const dist = cam.position.distanceTo(endPos);
   T3.anim = { t0: performance.now(), dur: Math.min(3200, 1200 + dist * 2.2), fromPos: cam.position.clone(), fromTgt: ctl.target.clone(), toPos: endPos, toTgt: target, lift: Math.min(260, 30 + dist * .35), p };
   ctl.enabled = false;
@@ -1432,14 +1467,17 @@ function beamAt(p, now, color, txt, h) {
   const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false }));
   label.scale.set(40, 10, 1); label.position.set(base.x, base.y + 22, base.z); label.renderOrder = 5; scene.add(label);
   T3.fx.push({ obj: beam, kind: "beam", t0: now }, { obj: label, kind: "label", t0: now });
-  const mesh = pmeshes.find(m => m.userData.x === p.x && m.userData.z === p.z);
+  const mesh = pmeshes.concat(T3.pinMeshes || []).find(m => m.userData.x === p.x && m.userData.z === p.z && !!m.userData.pin === !!p.pin);
   if (mesh) T3.fx.push({ obj: mesh, kind: "pulse", t0: now, keep: true });
 }
 function arrive(p, now) {
   const { scene } = T3;
-  T3.fx.forEach(f => { if (!f.keep) scene.remove(f.obj); else if (f.kind === "tube") { f.obj.material.opacity = .75; f.obj.material.color.setHex(0xb26bff); } });
+  T3.fx.forEach(f => { if (!f.keep) scene.remove(f.obj); else if (f.kind === "tube") { f.obj.material.opacity = .75; f.obj.material.color.setHex(0xb26bff); }
+    else if (f.kind === "pulse") { if (f.base !== undefined) f.obj.material.color.setHex(f.base); f.obj.scale.setScalar(1); } });
   T3.fx = [];
   const same = q => q.x === p.x && q.z === p.z;
+  if (p.pin) { beamAt(p, now, 0xffd28a, p.t, 140); return; }
+  if (p.base) return;
   beamAt(p, now, 0xc58cff, p.t || "(no name)", 160);
   // the other end of this portal lights up too
   const pair = (T3.tubes || []).find(t => same(t.a) || same(t.b));
@@ -1455,7 +1493,7 @@ function stepFx(now) {
     if (f.kind === "tube") { f.obj.material.opacity = a < 6 ? .75 + .25 * Math.abs(Math.sin(a * 4)) : .75; f.obj.material.color.setHex(a < 6 ? 0xe6c8ff : 0xb26bff); }
     if (f.kind === "label") f.obj.visible = now >= f.t0;
     if (f.kind === "beam") { f.obj.material.opacity = Math.max(0, .55 * (1 - a / 6)) + .1 * Math.sin(a * 6) * (a < 6); f.obj.scale.y = Math.max(.001, Math.min(1, a * 2.5)); }
-    if (f.kind === "pulse") { const s = 1 + .5 * Math.max(0, Math.sin(a * 5)) * Math.max(0, 1 - a / 6); f.obj.scale.setScalar(s); f.obj.material.color.setHex(a < 6 ? 0xffffff : 0xc58cff); }
+    if (f.kind === "pulse") { const s = 1 + .5 * Math.max(0, Math.sin(a * 5)) * Math.max(0, 1 - a / 6); f.obj.scale.setScalar(s); if (f.base === undefined) f.base = f.obj.material.color.getHex(); f.obj.material.color.setHex(a < 6 ? 0xffffff : f.base); }
   }
 }
 
