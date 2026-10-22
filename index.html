@@ -365,7 +365,7 @@ body.tv .tvbar{display:flex}
 
 
   <section id="histSec">
-    <p class="label">STOCK OVER TIME</p>
+    <p class="label">ITEM HISTORY</p>
     <div class="panel">
       <div class="hpick"><div class="hsel" id="hsel"></div><input id="hq" type="search" list="hlist" placeholder="Add an item…" autocomplete="off"><datalist id="hlist"></datalist></div>
       <div class="hchart" id="hchart"><p class="empty">Waiting for the server…</p></div>
@@ -1566,7 +1566,7 @@ function drawHist() {
   const ends = HSEL.map((c, i) => ({ c, i, y: Y(d.items[c][d.t.length - 1]), v: d.items[c][d.t.length - 1] })).sort((a, b) => a.y - b.y);
   for (let k = 1; k < ends.length; k++) if (ends[k].y - ends[k-1].y < 17) ends[k].y = ends[k-1].y + 17;
   const labels = ends.map(e => `<circle cx="${ml + pw}" cy="${Y(e.v)}" r="4" fill="${HCOL[e.i]}" stroke="#1b211e" stroke-width="2"/><text x="${ml + pw + 9}" y="${e.y + 4}" fill="#ece8df" font-size="13" font-weight="700">${esc(nameOf(e.c)).slice(0, 18)} <tspan fill="#9aa59e" font-weight="400">${fmt(e.v)}</tspan></text>`).join("");
-  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Stock of ${esc(HSEL.map(nameOf).join(", "))} over the last ${Math.round((t1 - t0) / 86400000) || 1} days">${g}${lines}${labels}
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="History of ${esc(HSEL.map(nameOf).join(", "))} over the last ${Math.round((t1 - t0) / 86400000) || 1} days">${g}${lines}${labels}
     <line id="hx" x1="0" x2="0" y1="${mt}" y2="${mt + ph}" stroke="#ece8df" stroke-opacity=".5" stroke-width="1" visibility="hidden"/><g id="hdots"></g>
     <rect x="${ml}" y="${mt}" width="${pw}" height="${ph}" fill="transparent" id="hhit"/></svg><div class="htip" id="htip" hidden></div>`;
   const svg = box.querySelector("svg"), tip = $("#htip"), hx = $("#hx"), dots = $("#hdots");
