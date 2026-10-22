@@ -212,6 +212,17 @@ body.tv .tvbar{display:flex}
 .walkmsg kbd{display:inline-block;padding:1px 7px;border:1px solid rgba(255,255,255,.35);border-radius:5px;margin:0 2px;font:700 13px var(--body)}
 .walkmsg .bigbtn{margin-top:12px}
 .cross{position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;z-index:5;pointer-events:none;border-radius:50%;border:2px solid rgba(255,255,255,.8)}
+.todohow{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;color:var(--muted);font-size:14.5px;margin-bottom:12px}
+.todohow code{font:700 14px ui-monospace,Consolas,monospace;color:var(--ember);background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:2px 8px;margin-right:8px}
+.todo{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line)}
+.todo:last-child{border-bottom:0}
+.todo .no{font:800 15px var(--display);color:#111;background:var(--ember);border-radius:999px;min-width:34px;text-align:center;padding:2px 8px}
+.todo .tx{font-size:17px;font-weight:600;overflow-wrap:anywhere}
+.todo .who{color:var(--muted);font-size:13.5px;text-align:right;white-space:nowrap}
+.todo.done .no{background:var(--ok)} .todo.done .tx{text-decoration:line-through;color:var(--muted);font-weight:400}
+.todo.new{animation:evin 2.5s ease-out}
+.tododone{margin-top:8px;color:var(--muted)} .tododone summary{cursor:pointer;font-size:14.5px;padding:4px 0}
+@media (max-width:560px){.todo{grid-template-columns:auto 1fr}.todo .who{grid-column:2;text-align:left}}
 .mapbox{position:relative;border:1px solid var(--wood-line);border-radius:14px;overflow:hidden;background:#0a1016;touch-action:none;height:min(72vh,640px)}
 #map{display:block;width:100%;height:100%;cursor:grab}
 #map.drag{cursor:grabbing}
@@ -262,7 +273,7 @@ body.tv .tvbar{display:flex}
     </div>
   </header>
 
-  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#feedSec">Feed</a><a href="#catSec">Totals</a><a href="#histSec">History</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
+  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#todoSec">To-do</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#feedSec">Feed</a><a href="#catSec">Totals</a><a href="#histSec">History</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
 
   <div class="stats" id="stats"></div>
 
@@ -281,6 +292,15 @@ body.tv .tvbar{display:flex}
 
   <section id="chestView" hidden></section>
   <div id="results" aria-live="polite"></div>
+
+
+  <section id="todoSec">
+    <p class="label">TO-DO · SHARED BY EVERYONE ON THE SERVER</p>
+    <div class="panel">
+      <div class="todohow"><span>Add from game chat:</span><code>todo kill Fader</code><span>Finish:</span><code>done 3</code><span>See the list in game:</span><code>todo</code></div>
+      <div id="todos"><p class="empty">Waiting for the server…</p></div>
+    </div>
+  </section>
 
   <section id="wallSec">
     <div class="sec-h">
@@ -449,8 +469,11 @@ async function load() {
       if (!w.chests) continue;
       if (LAST_RAW && w.updated && w.updated === LAST_RAW.updated) { showStatus(); return; }   // nothing new yet
       const before = LAST_RAW ? new Set((LAST_RAW.events || []).map(e => e.t + e.m)) : null;
+      const todoBefore = LAST_RAW && LAST_RAW.todos ? new Set(LAST_RAW.todos.map(x => x.id + ":" + (x.dat || 0))) : null;
       absorb(w); showStatus(); rerender(); PREV = null;
       if (before) for (const e of (w.events || []).filter(e => !before.has(e.t + e.m)).slice(-3)) toast(e);
+      if (todoBefore) for (const x of (w.todos || []).filter(x => !todoBefore.has(x.id + ":" + (x.dat || 0))).slice(-3))
+        toast({ k: "todo", m: x.dat ? `${x.dby} finished #${x.id}: ${x.t}` : `${x.by} added to-do #${x.id}: ${x.t}` });
       if (before) { const st = $("#status"); st.classList.remove("blip"); void st.offsetWidth; st.classList.add("blip"); }
       return;
     } catch (e) {}
@@ -558,7 +581,7 @@ function drawLists() {
   $("#strayList").innerHTML = `<h3>Out of place</h3>` + (st.length ? st.slice(0, 30).map(x => `<div class="row"><b>${esc(nameOf(x.code))}</b><span class="pos">${fmt(x.n)} in</span>${signHtml(x.sign)}<span class="pos">→ belongs in</span>${signHtml(x.plan)}</div>`).join("") + (st.length > 30 ? `<p class="note">…and ${st.length - 30} more.</p>` : "") : `<p class="empty">Everything is where it belongs.</p>`);
 }
 let feedFilter = "all", seenEvents = null;
-const EVK = { death:["✝","#ff7a6b","Death"], raid:["!","#f2c14e","Raid"], raidend:["✓","#9aa59e","Raid over"], boss:["♛","#d9a6ff","Boss"], join:["+","#6fd38f","Joined"], leave:["–","#9aa59e","Left"] };
+const EVK = { death:["✝","#ff7a6b","Death"], raid:["!","#f2c14e","Raid"], raidend:["✓","#9aa59e","Raid over"], boss:["♛","#d9a6ff","Boss"], join:["+","#6fd38f","Joined"], leave:["–","#9aa59e","Left"], todo:["✔","#f2a93b","To-do"] };
 function drawFeed() {
   const el = $("#feed"), ev = (LAST_RAW && LAST_RAW.events) || [];
   if (!LAST_RAW) return;
@@ -1580,6 +1603,22 @@ $("#hq").addEventListener("change", e => {
 window.addEventListener("resize", () => { clearTimeout(drawHist.t); drawHist.t = setTimeout(drawHist, 200); });
 
 
+
+// ---------- shared to-do list (added in game chat, kept by the server) ----------
+let seenTodos = null;
+function drawTodos() {
+  const el = $("#todos"); if (!LAST_RAW) return;
+  const all = LAST_RAW.todos;
+  if (!all) { el.innerHTML = `<p class="empty">The to-do list arrives once the server runs Wall Live 1.6.2.</p>`; return; }
+  const open = all.filter(x => !x.dat).sort((a, b) => a.id - b.id), done = all.filter(x => x.dat).sort((a, b) => b.dat - a.dat);
+  const fresh = seenTodos ? new Set(all.filter(x => !seenTodos.has(x.id + ":" + (x.dat || 0))).map(x => x.id)) : new Set();
+  seenTodos = new Set(all.map(x => x.id + ":" + (x.dat || 0)));
+  const row = x => `<div class="todo ${x.dat ? "done" : ""} ${fresh.has(x.id) ? "new" : ""}"><span class="no">#${x.id}</span><span class="tx">${esc(x.t)}</span>
+    <span class="who">${x.dat ? `done by ${esc(x.dby)} · ${ago(new Date(x.dat * 1000))}` : `${esc(x.by)} · ${ago(new Date(x.at * 1000))}`}</span></div>`;
+  el.innerHTML = (open.length ? open.map(row).join("") : `<p class="empty">Nothing to do. Add something from game chat: <b>todo</b> and what needs doing.</p>`) +
+    (done.length ? `<details class="tododone"><summary>Done recently (${done.length})</summary>${done.slice(0, 20).map(row).join("")}</details>` : "");
+}
+
 // ---------- pop-up when something happens while the page is open ----------
 function toast(e) {
   let host = $("#toasts"); if (!host) { host = document.createElement("div"); host.id = "toasts"; host.setAttribute("aria-live", "polite"); document.body.appendChild(host); }
@@ -1837,7 +1876,7 @@ function search(q) {
   if (!selected) highlight(hit);
 }
 function rerender() {
-  drawStats(); drawServer(); drawWall(); drawFeed(); drawBaseSec(); drawHist(); drawCats(); drawLists(); drawCraft(); drawPins(); tvTick(); mapRefresh();
+  drawStats(); drawServer(); drawWall(); drawFeed(); drawTodos(); drawBaseSec(); drawHist(); drawCats(); drawLists(); drawCraft(); drawPins(); tvTick(); mapRefresh();
   if (selected) showChest(selected); search($("#q").value);
   if (LIVE && !chgLoaded) { chgLoaded = true; drawChanges(); }
 }
