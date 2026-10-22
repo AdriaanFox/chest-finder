@@ -772,12 +772,43 @@ function build3D(box, HN, R, H, water) {
   if (M.fogOn && M.fog) { tx.imageSmoothingEnabled = true; tx.drawImage(M.fog, 0, 0, tex.width, tex.height); }
   const g = new THREE.PlaneGeometry(SZ, SZ, HN - 1, HN - 1); g.rotateX(-Math.PI / 2);
   const pos = g.attributes.position;
-  for (let i = 0; i < pos.count; i++) pos.setY(i, Math.max(-2, (H[i] - water) * k * ex));
+  // explored grid from the server (cartography table); undiscovered land is flattened so its shape doesn't show
+  const E = LAST_RAW && LAST_RAW.map && LAST_RAW.map.explored; let EX = null, EN = 0;
+  if (M.fogOn && E) { EN = E.n; EX = new Uint8Array(EN * EN); let p = 0, v = false; for (const r of E.rle.split(",")) { const k2 = +r; if (v) EX.fill(1, p, p + k2); p += k2; v = !v; } }
+  const seen = (i, j) => { if (!EX) return true; const ex2 = Math.floor(i / (HN - 1) * (EN - 1)), ez = Math.floor(j / (HN - 1) * (EN - 1));
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) { const a = ez + dz, b = ex2 + dx; if (a >= 0 && b >= 0 && a < EN && b < EN && EX[a * EN + b]) return true; } return false; };
+  for (let i = 0; i < pos.count; i++) { const vi = i % HN, vj = Math.floor(i / HN);
+    pos.setY(i, seen(vi, vj) ? Math.max(-2, (H[i] - water) * k * ex) : .5); }
   g.computeVertexNormals();
   const ground = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: new THREE.CanvasTexture(tex) }));
   scene.add(ground);
   const sea = new THREE.Mesh(new THREE.CircleGeometry(SZ / 2, 96), new THREE.MeshBasicMaterial({ color: 0x1d4a6b, transparent: true, opacity: .55 }));
   sea.rotation.x = -Math.PI / 2; sea.position.y = .2; scene.add(sea);
+  // clouds over everything not yet recorded at a cartography table
+  const clouds = [];
+  if (EX) {
+    const mk = document.createElement("canvas"); mk.width = mk.height = EN; const mx = mk.getContext("2d"), md = mx.createImageData(EN, EN);
+    for (let q = 0; q < EN * EN; q++) { if (!EX[q]) { md.data[q*4] = md.data[q*4+1] = md.data[q*4+2] = 255; md.data[q*4+3] = 255; } }
+    mx.putImageData(md, 0, 0);
+    const makeLayer = (seed, tone) => {
+      const C = 1024, c = document.createElement("canvas"); c.width = c.height = C; const cx = c.getContext("2d");
+      cx.filter = "blur(9px)"; cx.drawImage(mk, 0, 0, C, C); cx.filter = "none";
+      cx.globalCompositeOperation = "source-atop";
+      cx.fillStyle = tone; cx.fillRect(0, 0, C, C);
+      let r = seed; const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647;
+      for (let n = 0; n < 2600; n++) {          // soft puffs give the clouds texture
+        const x = rnd() * C, y = rnd() * C, rad = 6 + rnd() * 26, g2 = cx.createRadialGradient(x, y, 0, x, y, rad);
+        const l = 150 + Math.floor(rnd() * 100); g2.addColorStop(0, `rgba(${l},${l + 3},${l + 8},.7)`); g2.addColorStop(1, `rgba(${l},${l + 3},${l + 8},0)`);
+        cx.fillStyle = g2; cx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+      }
+      cx.globalCompositeOperation = "source-over";
+      return new THREE.CanvasTexture(c);
+    };
+    [[12, 7, "#59616b", .97], [20, 11, "#9aa3ad", .5]].forEach(([y, seed, tone, op]) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(SZ, SZ), new THREE.MeshBasicMaterial({ map: makeLayer(seed, tone), transparent: true, opacity: op, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2; m.position.y = y; m.renderOrder = 2; scene.add(m); clouds.push(m);
+    });
+  }
   const hAt = (x, z) => { const i = Math.round((x + R) / (2 * R) * (HN - 1)), j = Math.round((R - z) / (2 * R) * (HN - 1));
     const v = H[Math.max(0, Math.min(HN - 1, j)) * HN + Math.max(0, Math.min(HN - 1, i))]; return Math.max(0, (v - water) * k * ex); };
   const P = (x, z, lift) => new THREE.Vector3(x * k, hAt(x, z) + lift, -z * k);
@@ -801,6 +832,7 @@ function build3D(box, HN, R, H, water) {
   window.addEventListener("resize", resize);
   const tick = t => { if (!M.view3d || T3.r !== renderer) return;
     for (const gl of glows) gl.dot.position.copy(gl.curve.getPoint(((t || 0) / 2600 + gl.off) % 1));
+    if (clouds[1]) clouds[1].position.y = 20 + Math.sin((t || 0) / 3000) * 1.2;
     ctl.update(); renderer.render(scene, cam); T3.raf = requestAnimationFrame(tick); };
   tick();
 }
