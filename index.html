@@ -245,7 +245,7 @@ body.tv .tvbar{display:flex}
         <div class="mapbox">
           <canvas id="map"></canvas>
           <div id="map3d" hidden style="position:absolute;inset:0"></div>
-          <div class="mapctl"><button type="button" data-mc="fit">Whole world</button><button type="button" data-mc="base">Base</button><button type="button" data-mc="3d">3D</button><button type="button" class="on" data-mc="fog">Fog</button><button type="button" class="on" data-mc="labels">Portal names</button><button type="button" class="on" data-mc="pins">Pins</button></div>
+          <div class="mapctl"><button type="button" data-mc="fit">Whole world</button><button type="button" data-mc="base">Base</button><button type="button" data-mc="3d">3D</button><button type="button" class="on" data-mc="labels">Portal names</button><button type="button" class="on" data-mc="pins">Pins</button></div>
           <span class="maphint" id="maphint">Drag to move · scroll or pinch to zoom</span>
           <div class="mapmsg" id="mapMsg" hidden></div>
         </div>
@@ -799,7 +799,6 @@ document.querySelector(".mapctl").addEventListener("click", e => {
   const b = e.target.closest("[data-mc]"); if (!b) return; const k = b.dataset.mc;
   if (k === "fit") fitView("fit"); else if (k === "base") fitView("base");
   else if (k === "3d") { set3D(!M.view3d); b.classList.toggle("on", M.view3d); return; }
-  else if (k === "fog") { M.fogOn = !M.fogOn; b.classList.toggle("on", M.fogOn); if (M.view3d) { set3D(false); set3D(true); } }
   else if (k === "labels") { M.labels = !M.labels; b.classList.toggle("on", M.labels); }
   else if (k === "pins") { M.pins = !M.pins; b.classList.toggle("on", M.pins); }
   drawMap();
