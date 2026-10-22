@@ -1691,6 +1691,18 @@ function drawRaidBar() {
   if (live) el.innerHTML = `⚔ RAID IN PROGRESS <span>${esc(last.m)} · started ${ago(new Date(last.t))}</span>`;
 }
 
+
+// ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
+const BUILD = "2026-10-22-2300";
+async function checkBuild() {
+  try {
+    const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
+    const m = t.match(/const BUILD = "([^"]+)"/);
+    if (m && m[1] !== BUILD && !B3.walk) location.reload();
+  } catch (e) {}
+}
+setTimeout(checkBuild, 4000); setInterval(() => { if (!document.hidden) checkBuild(); }, 5 * 60000);
+
 // ---------- pop-up when something happens while the page is open ----------
 function toast(e) {
   let host = $("#toasts"); if (!host) { host = document.createElement("div"); host.id = "toasts"; host.setAttribute("aria-live", "polite"); document.body.appendChild(host); }
