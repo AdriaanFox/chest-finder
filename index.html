@@ -1693,12 +1693,15 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-22-2300";
+const BUILD = "2026-10-22-2305";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
     const m = t.match(/const BUILD = "([^"]+)"/);
-    if (m && m[1] !== BUILD && !B3.walk) location.reload();
+    if (!m || m[1] === BUILD || B3.walk) return;
+    // a new address skips the browser's stored copy; only try once per version so it can never loop
+    let tried = ""; try { tried = sessionStorage.getItem("buildTry") || ""; sessionStorage.setItem("buildTry", m[1]); } catch (e) {}
+    if (tried !== m[1]) location.replace(location.pathname + "?v=" + encodeURIComponent(m[1]) + location.hash);
   } catch (e) {}
 }
 setTimeout(checkBuild, 4000); setInterval(() => { if (!document.hidden) checkBuild(); }, 5 * 60000);
