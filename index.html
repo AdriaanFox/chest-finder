@@ -157,6 +157,25 @@ body.tv .wallbox{overflow:hidden}
 body.tv .tvbar{display:flex}
 .tvbar h2{margin:0;font:900 clamp(22px,2.4vw,36px) var(--display);letter-spacing:.03em}
 .tvclock{font:800 clamp(20px,2vw,30px) var(--display);color:var(--ember);font-variant-numeric:tabular-nums}
+.mapwrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px}
+@media (max-width:860px){.mapwrap{grid-template-columns:1fr}}
+.mapbox{position:relative;border:1px solid var(--wood-line);border-radius:14px;overflow:hidden;background:#0a1016;touch-action:none;height:min(72vh,640px)}
+#map{display:block;width:100%;height:100%;cursor:grab}
+#map.drag{cursor:grabbing}
+.mapctl{position:absolute;top:10px;left:10px;display:flex;flex-wrap:wrap;gap:6px}
+.mapctl button{font:700 13.5px var(--body);border:1px solid var(--line);background:rgba(15,19,17,.85);color:var(--fg);border-radius:999px;padding:4px 11px;cursor:pointer}
+.mapctl button.on{background:var(--ember);color:#1a1208;border-color:var(--ember)}
+.maphint{position:absolute;right:10px;bottom:8px;font-size:12.5px;color:#9aa59e;background:rgba(15,19,17,.7);padding:2px 8px;border-radius:6px}
+.mapmsg{position:absolute;inset:auto 10px 10px 10px;font-size:14px;color:var(--warn);background:rgba(15,19,17,.85);padding:8px 10px;border-radius:8px}
+.portals{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;max-height:min(72vh,640px)}
+.portals input{font:inherit;padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--bg2);color:var(--fg)}
+.plist{overflow:auto;display:flex;flex-direction:column}
+.prow{display:flex;justify-content:space-between;gap:8px;align-items:baseline;padding:7px 4px;border-top:1px dotted var(--line);cursor:pointer;border-radius:6px}
+.prow:hover,.prow.on{background:var(--bg2)}
+.prow b{font:800 15px var(--display);letter-spacing:.03em;color:#d9a6ff;min-width:0;overflow-wrap:anywhere}
+.prow span{color:var(--muted);font-size:13.5px;white-space:nowrap}
+.mlegend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:13.5px;color:var(--muted)}
+.mlegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 @media (max-width:640px){
   body{font-size:18px}
   h1{font-size:40px}
@@ -182,7 +201,7 @@ body.tv .tvbar{display:flex}
     </div>
   </header>
 
-  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#wallSec">Wall</a><a href="#catSec">Totals</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
+  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#catSec">Totals</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
 
   <div class="stats" id="stats"></div>
 
@@ -209,6 +228,27 @@ body.tv .tvbar{display:flex}
     </div>
     <div class="tvbar"><h2>Kaaphalla storage wall</h2><span class="status" id="tvStatus"></span><span class="tvclock" id="tvClock"></span><button class="bigbtn" id="tvExit" type="button">Exit (Esc)</button></div>
     <div class="wallbox"><div class="wall" id="wall"></div><div class="legend" id="legend"></div></div>
+  </section>
+
+  <section id="mapSec">
+    <p class="label">MAP · WHAT'S BEEN RECORDED AT THE CARTOGRAPHY TABLE</p>
+    <div class="mapwrap">
+      <div>
+        <div class="mapbox">
+          <canvas id="map"></canvas>
+          <div id="map3d" hidden style="position:absolute;inset:0"></div>
+          <div class="mapctl"><button type="button" data-mc="fit">Whole world</button><button type="button" data-mc="base">Base</button><button type="button" data-mc="3d">3D</button><button type="button" class="on" data-mc="fog">Fog</button><button type="button" class="on" data-mc="labels">Portal names</button><button type="button" class="on" data-mc="pins">Pins</button></div>
+          <span class="maphint" id="maphint">Drag to move · scroll or pinch to zoom</span>
+          <div class="mapmsg" id="mapMsg" hidden></div>
+        </div>
+        <div class="mlegend" id="mlegend"></div>
+      </div>
+      <div class="portals">
+        <p class="label" style="margin:0">PORTALS <span id="pcount"></span></p>
+        <input id="pq" type="search" placeholder="Find a portal" autocomplete="off">
+        <div class="plist" id="plist"><p class="empty">Waiting for the server…</p></div>
+      </div>
+    </div>
   </section>
 
   <section id="catSec">
@@ -529,6 +569,240 @@ function tvTick() {
   $("#tvStatus").innerHTML = $("#status").innerHTML; $("#tvStatus").className = $("#status").className;
 }
 
+// ======================= live map =======================
+const BIOME = { m:["Meadows","#7ca13f"], b:["Black Forest","#2f5a32"], s:["Swamp","#6b5638"], n:["Mountain","#dfe4ec"], p:["Plains","#cdb862"],
+  l:["Mistlands","#6a5a7e"], a:["Ashlands","#8a2f22"], d:["Deep North","#b7d3e3"], o:["Ocean","#16324a"], w:["Shallow water","#2b5f80"] };
+const M = { N:0, R:10500, grid:null, img:null, fog:null, s:1, ox:0, oy:0, fogOn:true, labels:true, pins:true, hl:null, ready:false, tried:false };
+// map pin icons from the game: 0 fire, 1 house, 2 hammer, 3 dot, 4 cave/portal-ish; others get a dot
+const PINCOL = ["#ff8a3d", "#f2c14e", "#9fd3ff", "#ffffff", "#c58cff"];
+const mapCv = $("#map"), mctx = mapCv.getContext("2d");
+// map files: next to the page if uploaded there, otherwise from the Gist the server fills
+async function fetchFile(name) {
+  for (const u of [name, `https://gist.githubusercontent.com/${GIST_USER}/${GIST_ID}/raw/${name}`]) {
+    try { const r = await fetch(u, { cache: "no-store" }); if (r.ok) { const t = await r.clone().text(); if (t.startsWith("VALHEIM-")) return r; } } catch (e) {}
+  }
+  return null;
+}
+async function loadMapPicture() {
+  M.tried = true;
+  try {
+    const r = await fetchFile("map.txt"); if (!r) throw 0;
+    const t = await r.text(); const nl = t.indexOf("\n"); const head = t.slice(0, nl).split(" ");
+    M.N = +head[1]; M.R = +head[2]; const N = M.N, g = new Uint8Array(N * N); const keys = Object.keys(BIOME);
+    let i = 0; const re = /(\d+)([^\d])/g; let m; const body = t.slice(nl + 1);
+    while ((m = re.exec(body))) { const k = m[2] === " " ? 255 : keys.indexOf(m[2]); g.fill(k < 0 ? 8 : k, i, i + +m[1]); i += +m[1]; }
+    M.grid = g;
+    const c = document.createElement("canvas"); c.width = c.height = N; const cx = c.getContext("2d"), id = cx.createImageData(N, N);
+    const rgb = keys.map(k => { const h = BIOME[k][1]; return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; });
+    for (let p = 0; p < N * N; p++) { const k = g[p]; if (k === 255) continue; const [r0,g0,b0] = rgb[k]; id.data[p*4]=r0; id.data[p*4+1]=g0; id.data[p*4+2]=b0; id.data[p*4+3]=255; }
+    cx.putImageData(id, 0, 0); M.img = c; M.ready = true; $("#mapMsg").hidden = true;
+  } catch (e) {
+    M.N = 1024; $("#mapMsg").hidden = false;
+    $("#mapMsg").textContent = "The map picture isn't online yet. The server sends it once after the update; portals still show.";
+  }
+  $("#mlegend").innerHTML = Object.values(BIOME).map(([n,c]) => `<span><i style="background:${c}"></i>${n}</span>`).join("");
+  fitView("base"); drawMap();
+}
+function buildFog() {
+  const E = LAST_RAW && LAST_RAW.map && LAST_RAW.map.explored; if (!E) { M.fog = null; return; }
+  const n = E.n, c = document.createElement("canvas"); c.width = c.height = n;
+  const cx = c.getContext("2d"), id = cx.createImageData(n, n);
+  let p = 0, v = false;
+  for (const run of E.rle.split(",")) { const k = +run; if (!v) for (let j = 0; j < k; j++) { id.data[(p+j)*4+3] = 255; } p += k; v = !v; }
+  for (let q = 0; q < n * n; q++) { id.data[q*4] = 8; id.data[q*4+1] = 11; id.data[q*4+2] = 10; }
+  cx.putImageData(id, 0, 0); M.fog = c;
+}
+const w2m = (x, z) => [(x + M.R) / (2 * M.R) * M.N, (M.R - z) / (2 * M.R) * M.N];
+function sizeCanvas() {
+  const r = mapCv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  if (mapCv.width !== Math.round(r.width * d) || mapCv.height !== Math.round(r.height * d)) { mapCv.width = Math.round(r.width * d); mapCv.height = Math.round(r.height * d); }
+  return d;
+}
+function fitView(what, x, z, zoom) {
+  const d = sizeCanvas(), W = mapCv.width, H = mapCv.height, N = M.N || 1024;
+  if (what === "fit") { M.s = Math.min(W, H) / N; M.ox = (W - N * M.s) / 2; M.oy = (H - N * M.s) / 2; return; }
+  let bx = x, bz = z;
+  if (what === "base") { const b = LAST_RAW && LAST_RAW.map && LAST_RAW.map.base; bx = b ? b.x : 335; bz = b ? b.z : -465; zoom = zoom || 6; }
+  M.s = Math.min(W, H) / N * (zoom || 6); const [mx, my] = w2m(bx, bz); M.ox = W / 2 - mx * M.s; M.oy = H / 2 - my * M.s;
+}
+function drawMap() {
+  const d = sizeCanvas(), W = mapCv.width, H = mapCv.height, N = M.N || 1024;
+  mctx.setTransform(1,0,0,1,0,0); mctx.fillStyle = "#0a1016"; mctx.fillRect(0,0,W,H);
+  mctx.setTransform(M.s,0,0,M.s,M.ox,M.oy);
+  mctx.imageSmoothingEnabled = M.s < 1.5;
+  if (M.img) mctx.drawImage(M.img, 0, 0);
+  else { mctx.strokeStyle = "#1b2a35"; mctx.lineWidth = 1 / M.s; mctx.beginPath(); mctx.arc(N/2, N/2, N/2, 0, Math.PI*2); mctx.stroke(); }
+  if (M.fogOn && M.fog) { mctx.imageSmoothingEnabled = true; mctx.drawImage(M.fog, 0, 0, N, N); }
+  mctx.setTransform(1,0,0,1,0,0);
+  const S = (x, z) => { const [mx, my] = w2m(x, z); return [mx * M.s + M.ox, my * M.s + M.oy]; };
+  const map = LAST_RAW && LAST_RAW.map; const fs = 12 * d;
+  mctx.font = `700 ${fs}px "Alegreya Sans", sans-serif`; mctx.textAlign = "center";
+  if (map && map.base) { const [x, y] = S(map.base.x, map.base.z); mctx.fillStyle = "#f2a93b"; mctx.strokeStyle = "#1a1208"; mctx.lineWidth = 2*d;
+    mctx.beginPath(); mctx.moveTo(x, y-9*d); mctx.lineTo(x+8*d, y-1*d); mctx.lineTo(x+6*d, y-1*d); mctx.lineTo(x+6*d, y+7*d); mctx.lineTo(x-6*d, y+7*d); mctx.lineTo(x-6*d, y-1*d); mctx.lineTo(x-8*d, y-1*d); mctx.closePath(); mctx.stroke(); mctx.fill();
+    label("Base", x, y + 20*d, "#f2a93b"); }
+  // linked portals: a glowing arc with a light travelling along it
+  for (const [a, b] of links()) {
+    const [x1, y1] = S(a.x, a.z), [x2, y2] = S(b.x, b.z);
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
+    const cx = mx - dy / L * L * .18, cy = my + dx / L * L * .18;
+    const hot = M.hl && ((M.hl.x === a.x && M.hl.z === a.z) || (M.hl.x === b.x && M.hl.z === b.z));
+    mctx.save(); mctx.lineCap = "round";
+    mctx.shadowColor = "#b26bff"; mctx.shadowBlur = (hot ? 18 : 10) * d;
+    mctx.strokeStyle = hot ? "rgba(235,215,255,.95)" : "rgba(190,130,255,.7)"; mctx.lineWidth = (hot ? 3 : 2) * d;
+    mctx.beginPath(); mctx.moveTo(x1, y1); mctx.quadraticCurveTo(cx, cy, x2, y2); mctx.stroke();
+    const t = ((performance.now() / 2600) + (Math.abs(a.x + b.z) % 97) / 97) % 1, u = 1 - t;
+    const px = u*u*x1 + 2*u*t*cx + t*t*x2, py = u*u*y1 + 2*u*t*cy + t*t*y2;
+    mctx.shadowBlur = 16 * d; mctx.fillStyle = "#ffffff"; mctx.beginPath(); mctx.arc(px, py, 2.6 * d, 0, Math.PI * 2); mctx.fill();
+    mctx.restore();
+  }
+  for (const p of (map && map.portals) || []) {
+    const [x, y] = S(p.x, p.z); if (x < -20 || y < -20 || x > W+20 || y > H+20) continue;
+    const on = M.hl && M.hl.x === p.x && M.hl.z === p.z, r = (on ? 8 : 5) * d;
+    mctx.fillStyle = on ? "#ffffff" : "#c58cff"; mctx.strokeStyle = "#1b0f26"; mctx.lineWidth = 2*d;
+    mctx.beginPath(); mctx.moveTo(x, y-r); mctx.lineTo(x+r, y); mctx.lineTo(x, y+r); mctx.lineTo(x-r, y); mctx.closePath(); mctx.fill(); mctx.stroke();
+    if (on || (M.labels && M.s > (Math.min(W,H)/N) * 2.5)) label(p.t || "(no name)", x, y - 11*d, on ? "#ffffff" : "#e2c9ff");
+  }
+  if (M.pins) for (const p of (map && map.pins) || []) {
+    const [x, y] = S(p.x, p.z); if (x < -20 || y < -20 || x > W+20 || y > H+20) continue;
+    mctx.globalAlpha = p.c ? .45 : 1;
+    mctx.fillStyle = PINCOL[p.k] || "#ffffff"; mctx.strokeStyle = "#111"; mctx.lineWidth = 1.5*d;
+    mctx.beginPath(); mctx.arc(x, y, 3.5*d, 0, Math.PI*2); mctx.fill(); mctx.stroke();
+    if (p.t && M.s > (Math.min(W,H)/N) * 4) { mctx.font = `600 ${11*d}px "Alegreya Sans", sans-serif`; label(p.t, x, y - 7*d, "#f1ead9"); mctx.font = `700 ${fs}px "Alegreya Sans", sans-serif`; }
+    mctx.globalAlpha = 1;
+  }
+  function label(t, x, y, c) { mctx.lineWidth = 3*d; mctx.strokeStyle = "rgba(0,0,0,.8)"; mctx.strokeText(t, x, y); mctx.fillStyle = c; mctx.fillText(t, x, y); }
+}
+// portals with the same name are linked (exactly two of them)
+function links() {
+  const ps = (LAST_RAW && LAST_RAW.map && LAST_RAW.map.portals) || [], by = {};
+  ps.forEach(p => { if (p.t) (by[p.t] = by[p.t] || []).push(p); });
+  return Object.values(by).filter(g => g.length === 2);
+}
+// animate only the travelling lights, only while the 2D map is on screen
+let mapVisible = false, lastFrame = 0;
+new IntersectionObserver(es => { mapVisible = es[0].isIntersecting; if (mapVisible) loop(); }).observe(document.querySelector(".mapbox"));
+function loop(t) {
+  if (!mapVisible || M.view3d || !links().length || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (!t || t - lastFrame > 33) { lastFrame = t || 0; drawMap(); }
+  requestAnimationFrame(loop);
+}
+function biomeAt(x, z) { if (!M.grid) return ""; const [mx, my] = w2m(x, z); const k = M.grid[Math.floor(my) * M.N + Math.floor(mx)]; const key = Object.keys(BIOME)[k]; return key ? BIOME[key][0] : ""; }
+function drawPortals() {
+  const map = LAST_RAW && LAST_RAW.map; const list = (map && map.portals) || [];
+  $("#pcount").textContent = list.length ? "· " + list.length : "";
+  const q = norm($("#pq").value);
+  const b = map && map.base ? map.base : { x: 335, z: -465 };
+  const count = {}; list.forEach(p => count[p.t] = (count[p.t] || 0) + 1);
+  const rows = list.filter(p => !q || norm(p.t).includes(q))
+    .sort((a, c) => (!a.t) - (!c.t) || a.t.localeCompare(c.t, undefined, { numeric: true }));
+  $("#plist").innerHTML = rows.length ? rows.map(p => { const dist = Math.hypot(p.x - b.x, p.z - b.z);
+    const on = M.hl && M.hl.x === p.x && M.hl.z === p.z;
+    return `<div class="prow ${on ? "on" : ""}" data-px="${p.x}" data-pz="${p.z}"><b>${esc(p.t || "(no name)")}</b><span>${biomeAt(p.x, p.z)}${biomeAt(p.x, p.z) ? " · " : ""}${dist < 1000 ? Math.round(dist) + " m" : (dist/1000).toFixed(1) + " km"}${count[p.t] === 1 && p.t ? " · unlinked" : ""}</span></div>`; }).join("")
+    : `<p class="empty">${list.length ? "No portal by that name." : "No portals found yet (the server checks every 10 minutes)."}</p>`;
+}
+// pan / zoom / pinch
+const ptrs = new Map(); let lastPinch = 0;
+mapCv.addEventListener("pointerdown", e => { mapCv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); mapCv.classList.add("drag"); });
+mapCv.addEventListener("pointermove", e => {
+  if (!ptrs.has(e.pointerId)) return; const d = window.devicePixelRatio || 1; const prev = ptrs.get(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptrs.size === 1) { M.ox += (e.clientX - prev[0]) * d; M.oy += (e.clientY - prev[1]) * d; drawMap(); }
+  else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const dist = Math.hypot(a[0]-b[0], a[1]-b[1]);
+    if (lastPinch) { const r = mapCv.getBoundingClientRect(); zoomAt(((a[0]+b[0])/2 - r.left) * d, ((a[1]+b[1])/2 - r.top) * d, dist / lastPinch); } lastPinch = dist; }
+});
+const endPtr = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) lastPinch = 0; if (!ptrs.size) mapCv.classList.remove("drag"); };
+mapCv.addEventListener("pointerup", endPtr); mapCv.addEventListener("pointercancel", endPtr);
+function zoomAt(px, py, f) { const ns = Math.max(0.2, Math.min(60, M.s * f)); f = ns / M.s; M.ox = px - (px - M.ox) * f; M.oy = py - (py - M.oy) * f; M.s = ns; drawMap(); }
+mapCv.addEventListener("wheel", e => { e.preventDefault(); const r = mapCv.getBoundingClientRect(), d = window.devicePixelRatio || 1; zoomAt((e.clientX - r.left) * d, (e.clientY - r.top) * d, e.deltaY < 0 ? 1.25 : 0.8); }, { passive: false });
+mapCv.addEventListener("dblclick", e => { const r = mapCv.getBoundingClientRect(), d = window.devicePixelRatio || 1; zoomAt((e.clientX - r.left) * d, (e.clientY - r.top) * d, 2); });
+document.querySelector(".mapctl").addEventListener("click", e => {
+  const b = e.target.closest("[data-mc]"); if (!b) return; const k = b.dataset.mc;
+  if (k === "fit") fitView("fit"); else if (k === "base") fitView("base");
+  else if (k === "3d") { set3D(!M.view3d); b.classList.toggle("on", M.view3d); return; }
+  else if (k === "fog") { M.fogOn = !M.fogOn; b.classList.toggle("on", M.fogOn); if (M.view3d) { set3D(false); set3D(true); } }
+  else if (k === "labels") { M.labels = !M.labels; b.classList.toggle("on", M.labels); }
+  else if (k === "pins") { M.pins = !M.pins; b.classList.toggle("on", M.pins); }
+  drawMap();
+});
+$("#plist").addEventListener("click", e => { const r = e.target.closest("[data-px]"); if (!r) return;
+  M.hl = { x: +r.dataset.px, z: +r.dataset.pz }; fitView("pt", M.hl.x, M.hl.z, 10); drawMap(); drawPortals(); });
+$("#pq").addEventListener("input", drawPortals);
+window.addEventListener("resize", () => drawMap());
+// ======================= 3D view (loaded only when asked for) =======================
+const T3 = { lib: null, r: null, raf: 0 };
+function loadScript(src) { return new Promise((ok, no) => { const e = document.createElement("script"); e.src = src; e.onload = ok; e.onerror = no; document.head.appendChild(e); }); }
+async function set3D(on) {
+  M.view3d = on;
+  $("#map").hidden = on; $("#map3d").hidden = !on;
+  $("#maphint").textContent = on ? "Drag to turn · right-drag to move · scroll or pinch to zoom" : "Drag to move · scroll or pinch to zoom";
+  if (!on) { cancelAnimationFrame(T3.raf); if (T3.r) { T3.r.dispose(); $("#map3d").innerHTML = ""; T3.r = null; } drawMap(); loop(); return; }
+  const box = $("#map3d"); box.innerHTML = `<p class="empty" style="padding:16px">Loading 3D…</p>`;
+  try {
+    if (!window.THREE) {
+      await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js");
+      await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js");
+    }
+    const r = await fetchFile("height.txt"); if (!r) throw new Error("noheight");
+    const t = await r.text(); const nl = t.indexOf("\n"), head = t.slice(0, nl).split(" ");
+    const HN = +head[1], R = +head[2], lo = +head[3], hi = +head[4], water = +head[5];
+    const bin = atob(t.slice(nl + 1).trim()), H = new Float32Array(HN * HN);
+    for (let i = 0; i < H.length; i++) { const b = bin.charCodeAt(i); H[i] = b ? lo + b * (hi - lo) / 255 : water - 5; }
+    if (!M.view3d) return;
+    build3D(box, HN, R, H, water);
+  } catch (e) {
+    box.innerHTML = `<p class="empty" style="padding:16px">${e.message === "noheight" ? "3D needs the height file, which the server sends once after the update. Try again in a few minutes." : "Couldn't start 3D on this device."}</p>`;
+  }
+}
+function build3D(box, HN, R, H, water) {
+  const THREE = window.THREE; box.innerHTML = "";
+  const W = box.clientWidth, Hh = box.clientHeight, SZ = 1000, k = SZ / (2 * R), ex = 3;   // heights x3 so hills read
+  const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); renderer.setSize(W, Hh);
+  box.appendChild(renderer.domElement); T3.r = renderer;
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a1016); scene.fog = new THREE.Fog(0x0a1016, 900, 2200);
+  const cam = new THREE.PerspectiveCamera(45, W / Hh, 1, 5000);
+  scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x1a140e, .85));
+  const sun = new THREE.DirectionalLight(0xfff1d6, .9); sun.position.set(-400, 600, 300); scene.add(sun);
+  // ground texture = the 2D map with fog baked in
+  const tex = document.createElement("canvas"); tex.width = tex.height = M.N || 1024; const tx = tex.getContext("2d");
+  tx.fillStyle = "#0a1016"; tx.fillRect(0, 0, tex.width, tex.height);
+  if (M.img) tx.drawImage(M.img, 0, 0);
+  if (M.fogOn && M.fog) { tx.imageSmoothingEnabled = true; tx.drawImage(M.fog, 0, 0, tex.width, tex.height); }
+  const g = new THREE.PlaneGeometry(SZ, SZ, HN - 1, HN - 1); g.rotateX(-Math.PI / 2);
+  const pos = g.attributes.position;
+  for (let i = 0; i < pos.count; i++) pos.setY(i, Math.max(-2, (H[i] - water) * k * ex));
+  g.computeVertexNormals();
+  const ground = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: new THREE.CanvasTexture(tex) }));
+  scene.add(ground);
+  const sea = new THREE.Mesh(new THREE.CircleGeometry(SZ / 2, 96), new THREE.MeshBasicMaterial({ color: 0x1d4a6b, transparent: true, opacity: .55 }));
+  sea.rotation.x = -Math.PI / 2; sea.position.y = .2; scene.add(sea);
+  const hAt = (x, z) => { const i = Math.round((x + R) / (2 * R) * (HN - 1)), j = Math.round((R - z) / (2 * R) * (HN - 1));
+    const v = H[Math.max(0, Math.min(HN - 1, j)) * HN + Math.max(0, Math.min(HN - 1, i))]; return Math.max(0, (v - water) * k * ex); };
+  const P = (x, z, lift) => new THREE.Vector3(x * k, hAt(x, z) + lift, -z * k);
+  // portals, links and the base
+  const map = LAST_RAW && LAST_RAW.map, glows = [];
+  const pmat = new THREE.MeshBasicMaterial({ color: 0xc58cff });
+  for (const p of (map && map.portals) || []) { const m = new THREE.Mesh(new THREE.OctahedronGeometry(3.2), pmat); m.position.copy(P(p.x, p.z, 6)); scene.add(m); }
+  for (const [a, b] of links()) {
+    const A = P(a.x, a.z, 6), B = P(b.x, b.z, 6), mid = A.clone().add(B).multiplyScalar(.5); mid.y += A.distanceTo(B) * .35 + 20;
+    const curve = new THREE.QuadraticBezierCurve3(A, mid, B);
+    scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 48, .9, 6, false), new THREE.MeshBasicMaterial({ color: 0xb26bff, transparent: true, opacity: .75 })));
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(2.2, 10, 10), new THREE.MeshBasicMaterial({ color: 0xffffff })); scene.add(dot);
+    glows.push({ curve, dot, off: Math.random() });
+  }
+  const base = map && map.base ? map.base : { x: 335, z: -465 };
+  const bm = new THREE.Mesh(new THREE.ConeGeometry(4, 10, 4), new THREE.MeshBasicMaterial({ color: 0xf2a93b })); bm.position.copy(P(base.x, base.z, 8)); bm.rotation.x = Math.PI; scene.add(bm);
+  const target = P(base.x, base.z, 0);
+  cam.position.set(target.x + 120, target.y + 160, target.z + 220);
+  const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.target.copy(target); ctl.enableDamping = true; ctl.maxPolarAngle = Math.PI * .47; ctl.minDistance = 20; ctl.maxDistance = 1800; ctl.update();
+  const resize = () => { if (!T3.r) return; const w = box.clientWidth, h = box.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); };
+  window.addEventListener("resize", resize);
+  const tick = t => { if (!M.view3d || T3.r !== renderer) return;
+    for (const gl of glows) gl.dot.position.copy(gl.curve.getPoint(((t || 0) / 2600 + gl.off) % 1));
+    ctl.update(); renderer.render(scene, cam); T3.raf = requestAnimationFrame(tick); };
+  tick();
+}
+
+function mapRefresh() { buildFog(); if (!M.tried) loadMapPicture(); else if (!M.view3d) drawMap(); drawPortals(); loop(); }
+
 function highlight(signs, sel) {
   const any = signs && signs.size;
   document.querySelectorAll(".cell").forEach(el => {
@@ -586,7 +860,7 @@ function search(q) {
   if (!selected) highlight(hit);
 }
 function rerender() {
-  drawStats(); drawServer(); drawWall(); drawCats(); drawLists(); drawCraft(); drawPins(); tvTick();
+  drawStats(); drawServer(); drawWall(); drawCats(); drawLists(); drawCraft(); drawPins(); tvTick(); mapRefresh();
   if (selected) showChest(selected); search($("#q").value);
   if (LIVE && !chgLoaded) { chgLoaded = true; drawChanges(); }
 }
