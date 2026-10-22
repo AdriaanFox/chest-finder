@@ -198,6 +198,20 @@ body.tv .tvbar{display:flex}
 .status.blip{animation:blip 1.2s ease-out}
 @keyframes blip{0%{border-color:var(--ok);box-shadow:0 0 0 0 rgba(111,211,143,.5)}100%{box-shadow:0 0 0 12px rgba(111,211,143,0)}}
 @media (prefers-reduced-motion:reduce){.toast,.cell .delta,.status.blip{animation:none}}
+#xq{font:inherit;padding:5px 12px;border:1px solid var(--line);border-radius:999px;background:var(--bg2);color:var(--fg);min-width:190px}
+#xq:focus{outline:none;border-color:var(--ember)}
+.basecard{position:absolute;z-index:5;right:10px;top:10px;width:min(280px,calc(100% - 20px));max-height:calc(100% - 20px);overflow:auto;background:rgba(14,18,16,.94);border:1px solid var(--wood-line);border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.basecard h3{margin:0 0 6px;font:800 18px var(--display);letter-spacing:.04em;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.basecard h3 button{border:0;background:none;color:var(--muted);font-size:18px;cursor:pointer}
+.basecard .ln{display:flex;justify-content:space-between;gap:10px;font-size:14.5px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.basecard .ln b{font-variant-numeric:tabular-nums} .basecard .ln.hit{color:var(--ember)}
+.basecard .open{margin-top:9px;width:100%}
+.walkmsg{position:absolute;inset:0;z-index:6;display:grid;place-items:center;background:rgba(8,10,12,.45);color:#f3efe6;text-align:center;cursor:pointer;font-size:15px}
+.walkmsg[hidden]{display:none}
+.walkmsg b{display:block;font:800 22px var(--display);letter-spacing:.05em;margin-bottom:6px}
+.walkmsg kbd{display:inline-block;padding:1px 7px;border:1px solid rgba(255,255,255,.35);border-radius:5px;margin:0 2px;font:700 13px var(--body)}
+.walkmsg .bigbtn{margin-top:12px}
+.cross{position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;z-index:5;pointer-events:none;border-radius:50%;border:2px solid rgba(255,255,255,.8)}
 .mapbox{position:relative;border:1px solid var(--wood-line);border-radius:14px;overflow:hidden;background:#0a1016;touch-action:none;height:min(72vh,640px)}
 #map{display:block;width:100%;height:100%;cursor:grab}
 #map.drag{cursor:grabbing}
@@ -306,9 +320,12 @@ body.tv .tvbar{display:flex}
         <button class="bigbtn" id="baseBtn" type="button">Show the base in 3D</button>
         <button class="tab" id="roofBtn" type="button" hidden>Hide roofs</button>
         <button class="tab" id="spinBtn" type="button" hidden>Spin</button>
+        <button class="tab" id="walkBtn" type="button" hidden>🚶 Walk around</button>
+        <input id="xq" type="search" placeholder="X-ray: find an item…" autocomplete="off" hidden>
         <span class="note" id="baseInfo">Waiting for the server…</span>
       </div>
-      <div class="basebox" id="baseBox" hidden><div id="base3d" style="position:absolute;inset:0"></div><div class="basetip" id="baseTip" hidden></div>
+      <div class="basebox" id="baseBox" hidden><div id="base3d" style="position:absolute;inset:0"></div><div class="basetip" id="baseTip" hidden></div><div class="basecard" id="baseCard" hidden></div>
+        <div class="walkmsg" id="walkMsg" hidden></div><div class="cross" id="cross" hidden></div>
         <span class="maphint">Drag to turn · right-drag to move · scroll or pinch to zoom</span></div>
     </div>
   </section>
@@ -1223,8 +1240,9 @@ function drawBaseSec() {
 async function openBase(on) {
   const boxEl = $("#baseBox"); B3.open = on; boxEl.hidden = !on;
   $("#baseBtn").textContent = on ? "Close the 3D base" : "Show the base in 3D";
-  $("#roofBtn").hidden = $("#spinBtn").hidden = !on;
-  if (!on) { cancelAnimationFrame(B3.raf); if (B3.r) { B3.r.dispose(); $("#base3d").innerHTML = ""; B3.r = null; } return; }
+  $("#roofBtn").hidden = $("#spinBtn").hidden = $("#xq").hidden = !on;
+  $("#walkBtn").hidden = !on || matchMedia("(pointer: coarse)").matches;
+  if (!on) { if (B3.walk) stopWalk(); cancelAnimationFrame(B3.raf); if (B3.r) { B3.r.dispose(); $("#base3d").innerHTML = ""; B3.r = null; } return; }
   $("#base3d").innerHTML = `<p class="empty" style="padding:16px">Loading 3D…</p>`;
   try {
     if (!window.THREE) {
@@ -1290,16 +1308,45 @@ function buildBase(keepCam) {
   ctl.addEventListener("start", () => { if (ctl.autoRotate) { ctl.autoRotate = false; B3.spin = false; $("#spinBtn").classList.remove("on"); } });
   $("#spinBtn").classList.toggle("on", ctl.autoRotate);
   ctl.update();
-  Object.assign(B3, { scene, cam, ctl, meshes, THREE, beam: null });
-  applyRoofs(); baseFocus(selected);
+  // wall chests: an invisible box on each (for hover/click) that glows when X-ray finds something in it
+  const chestParts = parts.filter(p => /chest/.test(data.shapes[p[0]].n));
+  const chests = [], glowMat = new THREE.MeshBasicMaterial({ color: 0xffb547, transparent: true, opacity: .9, depthTest: false, depthWrite: false });
+  for (const c of (LAST_RAW.chests || [])) {
+    if (!c.pos) continue; const [x, z] = String(c.pos).split(",").map(Number); if (!isFinite(x)) continue;
+    const bx = x - data.x0, bz = z - data.z0; let best = null, bd = .6;
+    for (const p of chestParts) { const d = Math.hypot(p[1] - bx, p[3] - bz); if (d < bd) { bd = d; best = p; } }
+    const sh = best ? data.shapes[best[0]] : null, bb = sh ? sh.b : [-.8, 0, -.45, .8, .9, .45];
+    const box = new THREE.Mesh(new THREE.BoxGeometry(bb[3] - bb[0] + .12, bb[4] - bb[1] + .12, bb[5] - bb[2] + .12), glowMat.clone());
+    box.geometry.translate((bb[0] + bb[3]) / 2, (bb[1] + bb[4]) / 2, -(bb[2] + bb[5]) / 2);
+    box.position.set(bx, best ? best[2] : 0, -bz); if (best && best.length === 5) box.rotation.y = -best[4] * Math.PI / 180;
+    box.visible = false; box.renderOrder = 6; box.userData = { sign: c.sign }; scene.add(box); chests.push(box);
+  }
+  Object.assign(B3, { scene, cam, ctl, meshes, ground, chests, THREE, beam: null, renderer });
+  applyRoofs(); baseFocus(selected); baseXray(B3.xr);
   // name of the piece under the mouse
   const ray = new THREE.Raycaster(), mv = new THREE.Vector2(), tip = $("#baseTip"); let lastMove = 0;
   renderer.domElement.addEventListener("pointermove", e => {
     const now = performance.now(); if (now - lastMove < 60) return; lastMove = now;
     const rc = renderer.domElement.getBoundingClientRect(); mv.set((e.clientX - rc.left) / rc.width * 2 - 1, -(e.clientY - rc.top) / rc.height * 2 + 1);
-    ray.setFromCamera(mv, cam); const hit = ray.intersectObjects(meshes.filter(x => x.visible))[0];
-    if (hit && e.buttons === 0) { tip.hidden = false; tip.textContent = prettyPart(hit.object.userData.name); tip.style.left = (e.clientX - rc.left) + "px"; tip.style.top = (e.clientY - rc.top) + "px"; }
-    else tip.hidden = true;
+    if (B3.walk) return;
+    ray.setFromCamera(mv, cam);
+    const ch = ray.intersectObjects(chests)[0], hit = ray.intersectObjects(meshes.filter(x => x.visible))[0];
+    if (e.buttons === 0 && (ch && (!hit || ch.distance <= hit.distance + .3 || B3.xr && B3.xr.size))) {
+      const sign = ch.object.userData.sign, L = LIVE && LIVE[sign];
+      const top = L ? Object.entries(L.items).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => nameOf(c) + " " + fmt(n)).join(" · ") : "";
+      tip.hidden = false; tip.innerHTML = `${esc(sign)}${top ? `<span style="display:block;font-weight:400;color:#c9d2da;font-size:12.5px">${esc(top)}</span>` : ""}`;
+      tip.style.left = (e.clientX - rc.left) + "px"; tip.style.top = (e.clientY - rc.top) + "px"; renderer.domElement.style.cursor = "pointer";
+    } else if (hit && e.buttons === 0) { tip.hidden = false; tip.textContent = prettyPart(hit.object.userData.name); tip.style.left = (e.clientX - rc.left) + "px"; tip.style.top = (e.clientY - rc.top) + "px"; renderer.domElement.style.cursor = ""; }
+    else { tip.hidden = true; renderer.domElement.style.cursor = ""; }
+  });
+  // click a wall chest: show what's in it
+  let downAt = null;
+  renderer.domElement.addEventListener("pointerdown", e => { downAt = [e.clientX, e.clientY]; });
+  renderer.domElement.addEventListener("pointerup", e => {
+    if (B3.walk || !downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
+    const rc = renderer.domElement.getBoundingClientRect(); mv.set((e.clientX - rc.left) / rc.width * 2 - 1, -(e.clientY - rc.top) / rc.height * 2 + 1);
+    ray.setFromCamera(mv, cam); const ch = ray.intersectObjects(chests)[0], hit = ray.intersectObjects(meshes.filter(x => x.visible))[0];
+    if (ch && (!hit || ch.distance <= hit.distance + .3 || B3.xr && B3.xr.size)) baseCard(ch.object.userData.sign); else $("#baseCard").hidden = true;
   });
   renderer.domElement.addEventListener("pointerleave", () => tip.hidden = true);
   const resize = () => { if (B3.r !== renderer) return; const w = box.clientWidth, h = box.clientHeight; if (!w || !h) return; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); };
@@ -1310,7 +1357,9 @@ function buildBase(keepCam) {
     fireLights.forEach((l, i) => l.intensity = (.4 + dark * 2.2) * (.85 + .15 * Math.sin(t / 90 + i * 7)));
     if (B3.beam) { const a = (t - B3.beam.t0) / 1000; B3.beam.obj.material.opacity = .35 + .2 * Math.sin(a * 4); B3.beam.obj.scale.y = Math.min(1, a * 2 + .05); }
     if (t > chipT) { chipT = t + 5000; paint(); }
-    ctl.update(); renderer.render(scene, cam); B3.raf = requestAnimationFrame(tick); };
+    if (B3.xr && B3.xr.size) { const a = .55 + .35 * Math.sin(t / 260); for (const c of chests) if (c.visible) c.material.opacity = a; }
+    if (B3.walk) stepWalk(t); else ctl.update();
+    renderer.render(scene, cam); B3.raf = requestAnimationFrame(tick); };
   tick();
 }
 function applyRoofs() { if (!B3.meshes) return; for (const m of B3.meshes) if (m.userData.roof) m.visible = !B3.noRoof; $("#roofBtn").classList.toggle("on", !!B3.noRoof); $("#roofBtn").textContent = B3.noRoof ? "Show roofs" : "Hide roofs"; }
@@ -1431,6 +1480,124 @@ function toast(e) {
   while (host.children.length > 4) host.firstChild.remove();
 }
 
+
+// ---------- X-ray: chests holding what you searched for glow through the walls ----------
+function baseXray(signs) {
+  B3.xr = signs && signs.size ? signs : null;
+  if (!B3.r || !B3.meshes) return;
+  const on = !!B3.xr;
+  for (const m of B3.meshes) {
+    const mt = m.material; if (mt.userData.op === undefined) mt.userData = { op: mt.opacity, tr: mt.transparent };
+    mt.transparent = on || mt.userData.tr; mt.opacity = on ? Math.min(mt.userData.op, .16) : mt.userData.op; mt.depthWrite = !on; mt.needsUpdate = true;
+  }
+  for (const c of B3.chests || []) c.visible = on && B3.xr.has(c.userData.sign);
+  // a thin light above each glowing chest so they're easy to spot from far away
+  const THREE = B3.THREE; if (B3.xbeams) { B3.xbeams.forEach(b => B3.scene.remove(b)); } B3.xbeams = [];
+  if (on) for (const c of B3.chests) if (c.visible && !B3.xbeams.some(b => b.position.distanceTo(c.position) < 1.2 && Math.abs(b.userData.y - c.position.y) < 3)) {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(.12, .3, 14, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xffb547, transparent: true, opacity: .45, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
+    b.position.set(c.position.x, c.position.y + 8, c.position.z); b.userData.y = c.position.y; B3.scene.add(b); B3.xbeams.push(b);
+  }
+  const n = on ? (B3.chests || []).filter(c => c.visible).length : 0;
+  $("#baseInfo").dataset.x = on ? `X-ray: ${n} chest${n === 1 ? "" : "s"} glowing` : "";
+  if (on) $("#baseInfo").textContent = $("#baseInfo").dataset.x + " · clear the search to switch off"; else drawBaseSec();
+}
+function baseCard(sign) {
+  const el = $("#baseCard"), L = LIVE && LIVE[sign];
+  const q = norm($("#q").value || ""), words = q ? q.split(" ") : [];
+  const rows = L ? Object.entries(L.items).sort((a, b) => b[1] - a[1]) : [];
+  el.innerHTML = `<h3>${esc(sign)}<button type="button" aria-label="Close" id="bcClose">×</button></h3>
+    ${L ? `<p class="note" style="margin:0 0 6px">${L.slots} of ${L.size} slots used</p>` : ""}
+    ${rows.length ? rows.slice(0, 18).map(([c, n]) => `<div class="ln ${words.length && words.every(w => norm(nameOf(c)).includes(w)) ? "hit" : ""}"><span>${esc(nameOf(c))}</span><b>${fmt(n)}</b></div>`).join("") + (rows.length > 18 ? `<p class="note">and ${rows.length - 18} more…</p>` : "")
+      : `<p class="empty">${L ? "Empty." : "No count for this chest yet."}</p>`}
+    <button class="bigbtn open" type="button" id="bcOpen">Open in chest finder</button>`;
+  el.hidden = false;
+  $("#bcClose").onclick = () => el.hidden = true;
+  $("#bcOpen").onclick = () => { showChest(sign); $("#chestView").scrollIntoView({ behavior: "smooth", block: "start" }); };
+}
+$("#xq").addEventListener("input", e => { $("#q").value = e.target.value; selected = null; $("#chestView").hidden = true; search(e.target.value); });
+
+// ---------- walk around the base (first person) ----------
+const KEYS = {};
+addEventListener("keydown", e => { if (B3.walk) { KEYS[e.code] = true; if (e.code === "Space") e.preventDefault(); } });
+addEventListener("keyup", e => { KEYS[e.code] = false; });
+async function startWalk() {
+  const THREE = window.THREE; if (!B3.r) return;
+  if (!THREE.PointerLockControls) await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js");
+  const { cam, ctl, renderer } = B3;
+  B3.orbitSave = { p: cam.position.clone(), t: ctl.target.clone() };
+  ctl.enabled = false; ctl.autoRotate = false; $("#spinBtn").classList.remove("on");
+  B3.noRoofBefore = B3.noRoof; B3.noRoof = false; applyRoofs();
+  const plc = B3.plc || (B3.plc = new THREE.PointerLockControls(cam, renderer.domElement));
+  // start in front of the storage wall, facing it
+  const start = new THREE.Vector3(0, 0, 0), wall = (B3.chests || []).find(c => c.userData.sign);
+  if (wall) start.copy(wall.position);
+  const face = wall ? new THREE.Vector3(0, 0, 1).applyEuler(wall.rotation) : new THREE.Vector3(0, 0, 1);
+  start.add(face.clone().multiplyScalar(3.5));
+  const fl = floorAt(start.x, start.z, start.y + 3);
+  cam.position.set(start.x, (fl == null ? start.y : fl) + 1.7, start.z);
+  cam.lookAt(start.x - face.x, cam.position.y - .2, start.z - face.z);
+  cam.near = .1; cam.updateProjectionMatrix();
+  B3.walk = { vy: 0, ground: true, last: performance.now() };
+  plc.removeEventListener && (plc.onLock = plc.onUnlock = null);
+  if (!plc._wired) { plc._wired = true;
+    plc.addEventListener("lock", () => { $("#walkMsg").hidden = true; $("#cross").hidden = false; });
+    plc.addEventListener("unlock", () => { if (B3.walk) walkPaused(); $("#cross").hidden = true; }); }
+  $("#walkBtn").textContent = "Stop walking"; $("#walkBtn").classList.add("on");
+  walkPaused(true);
+}
+function walkPaused(first) {
+  const m = $("#walkMsg"); m.hidden = false;
+  m.innerHTML = `<div><b>${first ? "Walk around the base" : "Paused"}</b>Click to look around · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> walk · <kbd>Shift</kbd> run · <kbd>Space</kbd> jump · <kbd>Esc</kbd> pause<br><button class="bigbtn" type="button" id="walkStop">Back to the overview</button></div>`;
+  m.onclick = e => { if (e.target.id === "walkStop") { stopWalk(); return; } B3.plc.lock(); };
+}
+function stopWalk() {
+  if (!B3.walk) return; B3.walk = null;
+  try { B3.plc && B3.plc.unlock(); } catch (e) {}
+  $("#walkMsg").hidden = true; $("#cross").hidden = true;
+  const { cam, ctl } = B3; if (B3.orbitSave) { cam.position.copy(B3.orbitSave.p); ctl.target.copy(B3.orbitSave.t); }
+  cam.near = .3; cam.updateProjectionMatrix(); ctl.enabled = true; ctl.update();
+  B3.noRoof = B3.noRoofBefore; applyRoofs();
+  $("#walkBtn").textContent = "🚶 Walk around"; $("#walkBtn").classList.remove("on");
+}
+const solid = () => [B3.ground, ...B3.meshes.filter(m => m.visible && !m.userData.soft)];
+// highest surface under a point, no higher than `from`
+function floorAt(x, z, from) {
+  const THREE = window.THREE, r = B3.downRay || (B3.downRay = new THREE.Raycaster());
+  r.set(new THREE.Vector3(x, from, z), new THREE.Vector3(0, -1, 0)); r.far = 60;
+  const h = r.intersectObjects(solid())[0]; return h ? h.point.y : null;
+}
+function blocked(from, dir, len) {
+  const THREE = window.THREE, r = B3.sideRay || (B3.sideRay = new THREE.Raycaster());
+  r.set(from, dir); r.far = len; return r.intersectObjects(solid()).length > 0;
+}
+function stepWalk(now) {
+  const W = B3.walk, cam = B3.cam, THREE = window.THREE; if (!W) return;
+  const dt = Math.min(.05, (now - W.last) / 1000 || 0); W.last = now;
+  if (!B3.plc || !B3.plc.isLocked) return;
+  const fwd = new THREE.Vector3(); cam.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
+  const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0));
+  const mv = new THREE.Vector3();
+  if (KEYS.KeyW || KEYS.ArrowUp) mv.add(fwd); if (KEYS.KeyS || KEYS.ArrowDown) mv.sub(fwd);
+  if (KEYS.KeyD || KEYS.ArrowRight) mv.add(right); if (KEYS.KeyA || KEYS.ArrowLeft) mv.sub(right);
+  const feet = cam.position.y - 1.7;
+  if (mv.lengthSq()) {
+    mv.normalize().multiplyScalar((KEYS.ShiftLeft || KEYS.ShiftRight ? 9 : 4.5) * dt);
+    for (const axis of ["x", "z"]) {            // slide along walls
+      const step = new THREE.Vector3(); step[axis] = mv[axis]; if (!step[axis]) continue;
+      const dir = step.clone().normalize(), hit = [.45, 1.2].some(hh => blocked(new THREE.Vector3(cam.position.x, feet + hh, cam.position.z), dir, Math.abs(step[axis]) + .35));
+      if (!hit) cam.position[axis] += step[axis];
+    }
+  }
+  // gravity, steps up to 0.6 m, jumping
+  const fl = floorAt(cam.position.x, cam.position.z, feet + .6);
+  if (KEYS.Space && W.ground) { W.vy = 6.5; W.ground = false; }
+  W.vy -= 20 * dt; let nf = feet + W.vy * dt;
+  if (fl != null && nf <= fl) { nf = fl; W.vy = 0; W.ground = true; } else W.ground = false;
+  if (nf < -40) { nf = (fl == null ? 0 : fl); W.vy = 0; }
+  cam.position.y = nf + 1.7;
+}
+$("#walkBtn").addEventListener("click", () => { if (B3.walk) stopWalk(); else startWalk(); });
+
 // ---- camera flight to a portal ----
 function fly3D(p) {
   if (!T3.cam) return;
@@ -1507,6 +1674,7 @@ function highlight(signs, sel) {
     el.classList.toggle("hit", !!on); el.classList.toggle("dim", !!any && !on);
     el.classList.toggle("sel", !!sel && el.dataset.sign === sel);
   });
+  if (!sel) baseXray(any ? signs : null);
 }
 function showChest(sign) {
   selected = sign;
