@@ -575,6 +575,10 @@ const BIOME = { m:["Meadows","#7ca13f"], b:["Black Forest","#2f5a32"], s:["Swamp
 const M = { N:0, R:10500, grid:null, img:null, fog:null, s:1, ox:0, oy:0, fogOn:true, labels:true, pins:true, hl:null, ready:false, tried:false };
 // map pin icons from the game: 0 fire, 1 house, 2 hammer, 3 dot, 4 cave/portal-ish; others get a dot
 const PINCOL = ["#ff8a3d", "#f2c14e", "#9fd3ff", "#ffffff", "#c58cff"];
+// the game saves boss/location pins with internal names; show the real ones
+const PIN_NAMES = { "$enemy_eikthyr":"Eikthyr", "$enemy_gdking":"The Elder", "$enemy_bonemass":"Bonemass", "$enemy_dragon":"Moder",
+  "$enemy_goblinking":"Yagluth", "$enemy_seekerqueen":"The Queen", "$enemy_fader":"Fader", "$enemy_hildir":"Hildir", "$npc_haldor":"Haldor", "$npc_hildir":"Hildir", "$npc_bogwitch":"Bog Witch" };
+const pinName = t => PIN_NAMES[t] || (t && t[0] === "$" ? t.replace(/^\$(enemy|npc|location|piece|item)_/, "").replace(/_/g, " ").replace(/\b\w/g, m => m.toUpperCase()) : t);
 const mapCv = $("#map"), mctx = mapCv.getContext("2d");
 // map files: next to the page if uploaded there, otherwise from the Gist the server fills
 async function fetchFile(name) {
@@ -667,7 +671,7 @@ function drawMap() {
     mctx.globalAlpha = p.c ? .45 : 1;
     mctx.fillStyle = PINCOL[p.k] || "#ffffff"; mctx.strokeStyle = "#111"; mctx.lineWidth = 1.5*d;
     mctx.beginPath(); mctx.arc(x, y, 3.5*d, 0, Math.PI*2); mctx.fill(); mctx.stroke();
-    if (p.t && M.s > (Math.min(W,H)/N) * 4) { mctx.font = `600 ${11*d}px "Alegreya Sans", sans-serif`; label(p.t, x, y - 7*d, "#f1ead9"); mctx.font = `700 ${fs}px "Alegreya Sans", sans-serif`; }
+    if (p.t && M.s > (Math.min(W,H)/N) * 4) { mctx.font = `600 ${11*d}px "Alegreya Sans", sans-serif`; label(pinName(p.t), x, y - 7*d, "#f1ead9"); mctx.font = `700 ${fs}px "Alegreya Sans", sans-serif`; }
     mctx.globalAlpha = 1;
   }
   function label(t, x, y, c) { mctx.lineWidth = 3*d; mctx.strokeStyle = "rgba(0,0,0,.8)"; mctx.strokeText(t, x, y); mctx.fillStyle = c; mctx.fillText(t, x, y); }
