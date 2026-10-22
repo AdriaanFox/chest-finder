@@ -223,6 +223,17 @@ body.tv .tvbar{display:flex}
 .todo.new{animation:evin 2.5s ease-out}
 .tododone{margin-top:8px;color:var(--muted)} .tododone summary{cursor:pointer;font-size:14.5px;padding:4px 0}
 @media (max-width:560px){.todo{grid-template-columns:auto 1fr}.todo .who{grid-column:2;text-align:left}}
+.hornbtn{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font:600 14px var(--body);color:var(--muted);background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:4px 12px;cursor:pointer}
+.hornbtn:hover,.hornbtn:focus-visible{border-color:var(--ember);color:var(--fg);outline:none} .hornbtn.on{color:var(--fg);border-color:#8a3a2a}
+.raidbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:12px;justify-content:center;flex-wrap:wrap;margin:10px 0;padding:10px 16px;border-radius:12px;
+  background:linear-gradient(90deg,#4a0f0b,#7a1a12,#4a0f0b);border:1px solid #ff6a50;color:#fff;font:800 17px var(--display);letter-spacing:.06em;box-shadow:0 0 30px rgba(255,60,40,.35);animation:raidglow 1.6s ease-in-out infinite}
+.raidbar[hidden]{display:none} .raidbar span{font:500 15px var(--body);letter-spacing:0;color:#ffd9d0}
+@keyframes raidglow{50%{box-shadow:0 0 50px rgba(255,60,40,.6)}}
+#raidFlash{position:fixed;inset:0;z-index:90;pointer-events:none;display:grid;place-items:center;background:radial-gradient(circle,rgba(255,40,20,.0) 30%,rgba(190,10,0,.55));animation:raidin 6s ease-out forwards}
+#raidFlash div{text-align:center;color:#fff;text-shadow:0 0 30px #ff2a10,0 4px 0 #3a0000;font:900 clamp(48px,12vw,130px)/1 var(--display);letter-spacing:.08em}
+#raidFlash div small{display:block;font:700 clamp(16px,3vw,26px) var(--body);letter-spacing:0;margin-top:10px;text-shadow:0 2px 8px #000}
+@keyframes raidin{0%{opacity:0}6%{opacity:1}12%{opacity:.55}18%{opacity:1}24%{opacity:.6}30%{opacity:1}80%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){#raidFlash,.raidbar{animation:none}}
 .mapbox{position:relative;border:1px solid var(--wood-line);border-radius:14px;overflow:hidden;background:#0a1016;touch-action:none;height:min(72vh,640px)}
 #map{display:block;width:100%;height:100%;cursor:grab}
 #map.drag{cursor:grabbing}
@@ -270,8 +281,10 @@ body.tv .tvbar{display:flex}
     <div>
       <span class="status" id="status"><span class="dot"></span><span id="statusText">Loading the latest chest count…</span></span>
       <div class="srv" id="srv"></div>
+      <button class="hornbtn" id="hornBtn" type="button"></button>
     </div>
   </header>
+  <div class="raidbar" id="raidBar" hidden></div>
 
   <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#todoSec">To-do</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#baseSec">Base</a><a href="#feedSec">Feed</a><a href="#catSec">Totals</a><a href="#histSec">History</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
 
@@ -472,7 +485,7 @@ async function load() {
       const before = LAST_RAW ? new Set((LAST_RAW.events || []).map(e => e.t + e.m)) : null;
       const todoBefore = LAST_RAW && LAST_RAW.todos ? new Set(LAST_RAW.todos.map(x => x.id + ":" + (x.dat || 0))) : null;
       absorb(w); showStatus(); rerender(); PREV = null;
-      if (before) for (const e of (w.events || []).filter(e => !before.has(e.t + e.m)).slice(-3)) toast(e);
+      if (before) for (const e of (w.events || []).filter(e => !before.has(e.t + e.m)).slice(-3)) { toast(e); if (e.k === "raid") raidAlert(e); }
       if (todoBefore) for (const x of (w.todos || []).filter(x => !todoBefore.has(x.id + ":" + (x.dat || 0))).slice(-3))
         toast({ k: "todo", m: x.dat ? `${x.dby} finished #${x.id}: ${x.t}` : `${x.by} added to-do #${x.id}: ${x.t}` });
       if (before) { const st = $("#status"); st.classList.remove("blip"); void st.offsetWidth; st.classList.add("blip"); }
@@ -1632,6 +1645,52 @@ function drawTodos() {
     (done.length ? `<details class="tododone"><summary>Done recently (${done.length})</summary>${done.slice(0, 20).map(row).join("")}</details>` : "");
 }
 
+
+// ---------- raid horn: a war horn and a red flash when a raid starts ----------
+let HORN = false; try { HORN = localStorage.getItem("raidHorn") === "1"; } catch (e) {}
+let AC = null;
+function audio() { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === "suspended") AC.resume(); } catch (e) {} return AC; }
+// the horn is made by the browser itself: low brass tones through a soft filter and an echo
+function playHorn() {
+  const ac = audio(); if (!ac) return;
+  const out = ac.createGain(); out.gain.value = .55;
+  const echo = ac.createDelay(1.5), fb = ac.createGain(), wet = ac.createGain(); echo.delayTime.value = .32; fb.gain.value = .35; wet.gain.value = .35;
+  out.connect(ac.destination); out.connect(echo); echo.connect(fb); fb.connect(echo); echo.connect(wet); wet.connect(ac.destination);
+  const blast = (t0, dur, f0) => {
+    const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 2; lp.frequency.setValueAtTime(300, t0); lp.frequency.linearRampToValueAtTime(1100, t0 + .35); lp.frequency.linearRampToValueAtTime(800, t0 + dur);
+    const env = ac.createGain(); env.gain.setValueAtTime(0, t0); env.gain.linearRampToValueAtTime(1, t0 + .3); env.gain.setValueAtTime(1, t0 + dur - .5); env.gain.linearRampToValueAtTime(0, t0 + dur);
+    lp.connect(env); env.connect(out);
+    const vib = ac.createOscillator(), vg = ac.createGain(); vib.frequency.value = 5; vg.gain.value = 1.6; vib.connect(vg); vib.start(t0); vib.stop(t0 + dur);
+    for (const [mul, det, g] of [[1, 0, .5], [1, 7, .35], [1.5, -4, .22], [2, 3, .12], [.5, 0, .3]]) {
+      const o = ac.createOscillator(), og = ac.createGain(); o.type = "sawtooth"; og.gain.value = g;
+      o.frequency.setValueAtTime(f0 * mul * .94, t0); o.frequency.linearRampToValueAtTime(f0 * mul, t0 + .25); o.detune.value = det;
+      vg.connect(o.frequency); o.connect(og); og.connect(lp); o.start(t0); o.stop(t0 + dur);
+    }
+  };
+  const t = ac.currentTime + .05; blast(t, 1.6, 98); blast(t + 1.9, 2.8, 98);
+}
+function paintHorn() { const b = $("#hornBtn"); b.classList.toggle("on", HORN); b.textContent = HORN ? "🔊 Raid horn on" : "🔇 Raid horn off"; b.title = HORN ? "A war horn sounds when a raid starts. Click to turn it off." : "Click to hear a war horn when a raid starts"; }
+$("#hornBtn").addEventListener("click", () => { HORN = !HORN; try { localStorage.setItem("raidHorn", HORN ? "1" : "0"); } catch (e) {} paintHorn(); if (HORN) playHorn(); });
+// browsers only allow sound after a click on the page, so wake the audio on the first click anywhere
+addEventListener("pointerdown", () => { if (HORN) audio(); }, { once: true });
+paintHorn();
+function raidAlert(e) {
+  if (HORN) playHorn();
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const old = $("#raidFlash"); if (old) old.remove();
+  const f = document.createElement("div"); f.id = "raidFlash";
+  f.innerHTML = `<div>RAID!<small>${esc(e.m)}</small></div>`; document.body.appendChild(f);
+  setTimeout(() => f.remove(), 6200);
+}
+// a red bar at the top while a raid is still going (no "is over" yet, and less than 20 minutes old)
+function drawRaidBar() {
+  const ev = (LAST_RAW && LAST_RAW.events) || [], el = $("#raidBar");
+  let last = null; for (const e of ev) if (e.k === "raid" || e.k === "raidend") last = e;
+  const live = last && last.k === "raid" && Date.now() - new Date(last.t) < 20 * 60000;
+  el.hidden = !live;
+  if (live) el.innerHTML = `⚔ RAID IN PROGRESS <span>${esc(last.m)} · started ${ago(new Date(last.t))}</span>`;
+}
+
 // ---------- pop-up when something happens while the page is open ----------
 function toast(e) {
   let host = $("#toasts"); if (!host) { host = document.createElement("div"); host.id = "toasts"; host.setAttribute("aria-live", "polite"); document.body.appendChild(host); }
@@ -1889,7 +1948,7 @@ function search(q) {
   if (!selected) highlight(hit);
 }
 function rerender() {
-  drawStats(); drawServer(); drawWall(); drawFeed(); drawTodos(); drawBaseSec(); drawHist(); drawCats(); drawLists(); drawCraft(); drawPins(); tvTick(); mapRefresh();
+  drawStats(); drawServer(); drawWall(); drawFeed(); drawRaidBar(); drawTodos(); drawBaseSec(); drawHist(); drawCats(); drawLists(); drawCraft(); drawPins(); tvTick(); mapRefresh();
   if (selected) showChest(selected); search($("#q").value);
   if (LIVE && !chgLoaded) { chgLoaded = true; drawChanges(); }
 }
