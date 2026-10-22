@@ -273,7 +273,7 @@ body.tv .tvbar{display:flex}
     </div>
   </header>
 
-  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#todoSec">To-do</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#feedSec">Feed</a><a href="#catSec">Totals</a><a href="#histSec">History</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
+  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#todoSec">To-do</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#baseSec">Base</a><a href="#feedSec">Feed</a><a href="#catSec">Totals</a><a href="#histSec">History</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
 
   <div class="stats" id="stats"></div>
 
@@ -333,7 +333,7 @@ body.tv .tvbar{display:flex}
   </section>
 
 
-  <section id="baseSec" hidden>
+  <section id="baseSec">
     <p class="label">OUR BASE IN 3D</p>
     <div class="panel basepanel">
       <div class="basebar">
@@ -1298,7 +1298,7 @@ function skyChip(box, onToggle) {
 
 // ---------- the base in 3D (building pieces sent by the server) ----------
 const B3 = {};
-const BASE_ON = false;   // the 3D base section is switched off for now
+const BASE_ON = true;
 const ROOF_FLIP = new Set();
 // things the server counts as buildable that aren't buildings (berry bushes, crops, pickables)
 const NOT_BUILDING = /^pickable_|bush|sapling|^vine|^(oat|barley|flax|carrot|turnip|onion|cloudberry|pukeberries|fernashlands|magecap|jotunpuffs|beech_small|fir_small|pine_small|birch_small|oak_small)$/;
