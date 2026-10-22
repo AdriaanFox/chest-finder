@@ -367,6 +367,7 @@ body.tv .tvbar{display:flex}
   <section id="histSec">
     <p class="label">ITEM HISTORY</p>
     <div class="panel">
+      <div class="seg" id="hrange"><button class="tab" data-hr="24" type="button">24 hours</button><button class="tab" data-hr="72" type="button">3 days</button><button class="tab" data-hr="168" type="button">7 days</button><button class="tab" data-hr="720" type="button">30 days</button></div>
       <div class="hpick"><div class="hsel" id="hsel"></div><input id="hq" type="search" list="hlist" placeholder="Add an item…" autocomplete="off"><datalist id="hlist"></datalist></div>
       <div class="hchart" id="hchart"><p class="empty">Waiting for the server…</p></div>
       <div class="hmovers" id="hmovers"></div>
@@ -1519,6 +1520,7 @@ $("#spinBtn").addEventListener("click", () => { if (!B3.ctl) return; B3.ctl.auto
 // ---------- stock over time (hourly totals the server keeps for 7 days) ----------
 const HCOL = ["#3987e5", "#d95926", "#199e70", "#c98500"];   // fixed order, validated for the dark panel
 let HSEL = null; try { HSEL = JSON.parse(localStorage.getItem("histSel") || "null"); } catch (e) {}
+let HRANGE = 168; try { HRANGE = +localStorage.getItem("histRange") || 168; } catch (e) {}
 const saveHSel = () => { try { localStorage.setItem("histSel", JSON.stringify(HSEL)); } catch (e) {} };
 function histData() {
   const h = LAST_RAW && LAST_RAW.hist; if (!h || !h.t || h.t.length < 1) return null;
@@ -1540,7 +1542,12 @@ function histMovers(d) {
 }
 const niceMax = v => { if (v <= 0) return 10; const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p; };
 function drawHist() {
-  const box = $("#hchart"), d = histData();
+  const box = $("#hchart"), full = histData();
+  document.querySelectorAll("#hrange .tab").forEach(b => b.classList.toggle("on", +b.dataset.hr === HRANGE));
+  // keep only the chosen date range (the newest point is always kept)
+  let d = full;
+  if (full) { const from = full.t[full.t.length - 1] - HRANGE * 3600000, k0 = Math.max(0, full.t.findIndex(t => t >= from));
+    d = { t: full.t.slice(k0), items: Object.fromEntries(Object.entries(full.items).map(([c, a]) => [c, a.slice(k0)])), short: full.t[0] > from + 3600000, since: full.t[0] }; }
   if (!d || d.t.length < 2) {
     box.innerHTML = `<p class="empty">${LAST_RAW ? "History starts once the server runs Wall Live 1.6. It saves one point every hour, so check back in a few hours." : "Waiting for the server…"}</p>`;
     $("#hsel").innerHTML = ""; $("#hmovers").innerHTML = ""; $("#htable").innerHTML = ""; return;
@@ -1551,22 +1558,27 @@ function drawHist() {
   $("#hlist").innerHTML = Object.keys(d.items).map(c => `<option value="${esc(nameOf(c))}">`).join("");
   $("#hsel").innerHTML = HSEL.map((c, i) => `<span class="hchip"><i style="background:${HCOL[i]}"></i>${esc(nameOf(c))}<button type="button" data-hrm="${esc(c)}" aria-label="Remove ${esc(nameOf(c))}">×</button></span>`).join("");
   $("#hq").disabled = HSEL.length >= 4; $("#hq").placeholder = HSEL.length >= 4 ? "Up to 4 at once" : "Add an item…";
-  $("#hmovers").innerHTML = movers.length ? `Biggest changes this week:` + movers.slice(0, 6).map(x => `<button type="button" data-hadd="${esc(x.c)}">${esc(nameOf(x.c))} <span class="${x.d > 0 ? "up" : "down"}">${x.d > 0 ? "+" : "−"}${fmt(Math.abs(x.d))}</span></button>`).join("") : "Nothing changed this week.";
+  const rname = { 24: "in the last 24 hours", 72: "in the last 3 days", 168: "this week", 720: "in the last 30 days" }[HRANGE] || "";
+  $("#hmovers").innerHTML = (d.short ? `<span>History only goes back to ${new Date(d.since).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })} so far.</span> ` : "") +
+    (movers.length ? `Biggest changes ${rname}:` + movers.slice(0, 6).map(x => `<button type="button" data-hadd="${esc(x.c)}">${esc(nameOf(x.c))} <span class="${x.d > 0 ? "up" : "down"}">${x.d > 0 ? "+" : "−"}${fmt(Math.abs(x.d))}</span></button>`).join("") : `Nothing changed ${rname}.`);
   // chart
   const W = Math.max(300, box.clientWidth || 700), H = 280, ml = 50, mr = Math.min(150, W * .24), mt = 14, mb = 30, pw = W - ml - mr, ph = H - mt - mb;
   const t0 = d.t[0], t1 = d.t[d.t.length - 1], X = t => ml + (t - t0) / Math.max(1, t1 - t0) * pw;
   const top = niceMax(Math.max(1, ...HSEL.flatMap(c => d.items[c]))), Y = v => mt + ph - v / top * ph;
   let g = "";
   for (let k = 0; k <= 4; k++) { const v = top * k / 4, y = Y(v); g += `<line x1="${ml}" x2="${ml + pw}" y1="${y}" y2="${y}" stroke="#2c3530" stroke-width="1"/><text x="${ml - 8}" y="${y + 4}" text-anchor="end" fill="#9aa59e" font-size="12">${fmt(Math.round(v))}</text>`; }
-  const day = new Date(t0); day.setHours(24, 0, 0, 0);
-  for (let t = +day; t < t1; t += 86400000) { const x = X(t); g += `<line x1="${x}" x2="${x}" y1="${mt}" y2="${mt + ph}" stroke="#2c3530" stroke-width="1" stroke-dasharray="2 4"/>`;
-    if (x < ml + pw - 20) g += `<text x="${x + 4}" y="${H - 10}" fill="#9aa59e" font-size="12">${new Date(t).toLocaleDateString([], { weekday: "short", day: "numeric" })}</text>`; }
+  const span = t1 - t0, stepH = span <= 30 * 3600000 ? 6 : span <= 4 * 86400000 ? 12 : span <= 9 * 86400000 ? 24 : 96;
+  const first = new Date(t0); first.setMinutes(0, 0, 0); first.setHours(Math.ceil((first.getHours() + 1) / stepH) * stepH);
+  if (stepH >= 24) { first.setHours(24, 0, 0, 0); }
+  for (let t = +first; t < t1; t += stepH * 3600000) { const x = X(t), dt = new Date(t); g += `<line x1="${x}" x2="${x}" y1="${mt}" y2="${mt + ph}" stroke="#2c3530" stroke-width="1" stroke-dasharray="2 4"/>`;
+    const txt = stepH < 24 ? (dt.getHours() === 0 ? dt.toLocaleDateString([], { weekday: "short", day: "numeric" }) : dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : dt.toLocaleDateString([], stepH > 24 ? { day: "numeric", month: "short" } : { weekday: "short", day: "numeric" });
+    if (x < ml + pw - 20) g += `<text x="${x + 4}" y="${H - 10}" fill="#9aa59e" font-size="12">${txt}</text>`; }
   const lines = HSEL.map((c, i) => `<polyline fill="none" stroke="${HCOL[i]}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${d.items[c].map((v, k) => X(d.t[k]).toFixed(1) + "," + Y(v).toFixed(1)).join(" ")}"/>`).join("");
   // direct labels at the right end, nudged apart so they never overlap
   const ends = HSEL.map((c, i) => ({ c, i, y: Y(d.items[c][d.t.length - 1]), v: d.items[c][d.t.length - 1] })).sort((a, b) => a.y - b.y);
   for (let k = 1; k < ends.length; k++) if (ends[k].y - ends[k-1].y < 17) ends[k].y = ends[k-1].y + 17;
   const labels = ends.map(e => `<circle cx="${ml + pw}" cy="${Y(e.v)}" r="4" fill="${HCOL[e.i]}" stroke="#1b211e" stroke-width="2"/><text x="${ml + pw + 9}" y="${e.y + 4}" fill="#ece8df" font-size="13" font-weight="700">${esc(nameOf(e.c)).slice(0, 18)} <tspan fill="#9aa59e" font-weight="400">${fmt(e.v)}</tspan></text>`).join("");
-  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="History of ${esc(HSEL.map(nameOf).join(", "))} over the last ${Math.round((t1 - t0) / 86400000) || 1} days">${g}${lines}${labels}
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="History of ${esc(HSEL.map(nameOf).join(", "))} ${rname}">${g}${lines}${labels}
     <line id="hx" x1="0" x2="0" y1="${mt}" y2="${mt + ph}" stroke="#ece8df" stroke-opacity=".5" stroke-width="1" visibility="hidden"/><g id="hdots"></g>
     <rect x="${ml}" y="${mt}" width="${pw}" height="${ph}" fill="transparent" id="hhit"/></svg><div class="htip" id="htip" hidden></div>`;
   const svg = box.querySelector("svg"), tip = $("#htip"), hx = $("#hx"), dots = $("#hdots");
@@ -1586,7 +1598,7 @@ function drawHist() {
   // table view
   const last = d.t.length - 1, ago = h => { const target = d.t[last] - h * 3600000; let k = 0; d.t.forEach((t, j) => { if (t <= target) k = j; }); return k; };
   const k24 = ago(24);
-  $("#htable").innerHTML = `<table><thead><tr><th>Item</th><th>Now</th><th>24 h ago</th><th>Start of week</th><th>Change</th></tr></thead><tbody>${
+  $("#htable").innerHTML = `<table><thead><tr><th>Item</th><th>Now</th><th>24 h ago</th><th>Start of range</th><th>Change</th></tr></thead><tbody>${
     [...new Set([...HSEL, ...movers.slice(0, 12).map(x => x.c)])].map(c => { const a = d.items[c], ch = a[last] - a[0];
       return `<tr><td>${esc(nameOf(c))}</td><td>${fmt(a[last])}</td><td>${fmt(a[k24])}</td><td>${fmt(a[0])}</td><td>${ch > 0 ? "+" : ch < 0 ? "−" : ""}${fmt(Math.abs(ch))}</td></tr>`; }).join("")}</tbody></table>`;
 }
@@ -1595,6 +1607,7 @@ document.addEventListener("click", e => {
   if (rm) { HSEL = HSEL.filter(c => c !== rm.dataset.hrm); if (!HSEL.length) HSEL = []; saveHSel(); drawHist(); }
   if (add) { const c = add.dataset.hadd; HSEL = HSEL.filter(x => x !== c); HSEL.push(c); if (HSEL.length > 4) HSEL.shift(); saveHSel(); drawHist(); }
 });
+$("#hrange").addEventListener("click", e => { const b = e.target.closest("[data-hr]"); if (!b) return; HRANGE = +b.dataset.hr; try { localStorage.setItem("histRange", HRANGE); } catch (er) {} drawHist(); });
 $("#hq").addEventListener("change", e => {
   const d = histData(); if (!d) return; const v = e.target.value.trim().toLowerCase();
   const c = Object.keys(d.items).find(k => nameOf(k).toLowerCase() === v) || Object.keys(d.items).find(k => nameOf(k).toLowerCase().includes(v));
