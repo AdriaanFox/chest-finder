@@ -262,7 +262,7 @@ body.tv .tvbar{display:flex}
     </div>
   </header>
 
-  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#baseSec">Base</a><a href="#feedSec">Feed</a><a href="#catSec">Totals</a><a href="#histSec">History</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
+  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#feedSec">Feed</a><a href="#catSec">Totals</a><a href="#histSec">History</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
 
   <div class="stats" id="stats"></div>
 
@@ -313,7 +313,7 @@ body.tv .tvbar{display:flex}
   </section>
 
 
-  <section id="baseSec">
+  <section id="baseSec" hidden>
     <p class="label">OUR BASE IN 3D</p>
     <div class="panel basepanel">
       <div class="basebar">
@@ -1274,6 +1274,7 @@ function skyChip(box, onToggle) {
 
 // ---------- the base in 3D (building pieces sent by the server) ----------
 const B3 = {};
+const BASE_ON = false;   // the 3D base section is switched off for now
 const ROOF_FLIP = new Set();
 // things the server counts as buildable that aren't buildings (berry bushes, crops, pickables)
 const NOT_BUILDING = /^pickable_|bush|sapling|^vine|^(oat|barley|flax|carrot|turnip|onion|cloudberry|pukeberries|fernashlands|magecap|jotunpuffs|beech_small|fir_small|pine_small|birch_small|oak_small)$/;
@@ -1790,7 +1791,7 @@ function showChest(sign) {
   const v = $("#chestView"), L = LIVE && LIVE[sign], note = D.notes[sign];
   const items = L ? Object.entries(L.items).sort((a,b)=>b[1]-a[1]) : null;
   const pinned = PINS.includes(sign);
-  v.innerHTML = `<div class="chest"><h2>${signHtml(sign)} ${posHtml(sign)}<button class="star ${pinned ? "on" : ""}" type="button" id="pinChest">${pinned ? "★ Pinned" : "☆ Pin"}</button>${LAST_RAW && LAST_RAW.build ? `<button class="star" type="button" id="baseChest">Show in 3D base</button>` : ""}<button class="close" type="button" id="closeChest">Close</button></h2>
+  v.innerHTML = `<div class="chest"><h2>${signHtml(sign)} ${posHtml(sign)}<button class="star ${pinned ? "on" : ""}" type="button" id="pinChest">${pinned ? "★ Pinned" : "☆ Pin"}</button>${BASE_ON && LAST_RAW && LAST_RAW.build ? `<button class="star" type="button" id="baseChest">Show in 3D base</button>` : ""}<button class="close" type="button" id="closeChest">Close</button></h2>
     ${note ? `<p class="note">For: ${esc(note)}</p>` : ""}${meterHtml(sign)}
     ${items === null ? `<p class="empty">No live count for this chest yet.</p>`
       : items.length ? `<ul>${items.map(([c,n]) => { const p = D.plan[c], stray = p && p !== sign && sign !== "SPARE";
