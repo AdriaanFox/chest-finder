@@ -1155,7 +1155,8 @@ const prettyPart = n => (n || "").replace(/^piece_/, "").replace(/_/g, " ").repl
 function partLook(n) {
   n = (n || "").toLowerCase();
   if (/portal/.test(n)) return { c: 0x8e5cc8, e: 0x2a0f45 };
-  if (/fire|hearth|brazier|torch|sconce|forge|kiln|smelter|furnace|lantern|candle/.test(n)) return { c: 0x7a5236, e: 0xb3501a, fire: true };
+  if (/kiln|smelter|furnace|forge|foundry|refinery|incinerator|windmill|catapult|turret|cauldron|oven|stonecutter/.test(n)) return { c: 0x5f5a55 };
+  if (/fire|hearth|brazier|torch|sconce|lantern|candle|pyre/.test(n)) return { c: 0x6b4630, e: 0x8a3a12, fire: true };
   if (/crystal|glass|window/.test(n)) return { c: 0xbfe3ff, t: .55 };
   if (/chest|barrel/.test(n)) return { c: 0x9a6232 };
   if (/stone|marble|grausten|ashwall|flametal/.test(n)) return { c: 0x8f8d88 };
