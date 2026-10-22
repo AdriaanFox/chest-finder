@@ -298,7 +298,7 @@ body.tv .tvbar{display:flex}
         <div class="mapbox">
           <canvas id="map"></canvas>
           <div id="map3d" hidden style="position:absolute;inset:0"></div>
-          <div class="mapctl"><button type="button" data-mc="fit">Whole world</button><button type="button" data-mc="base">Base</button><button type="button" data-mc="3d">3D</button><button type="button" class="on" data-mc="labels">Portal names</button><button type="button" class="on" data-mc="pins">Pins</button></div>
+          <div class="mapctl"><button type="button" data-mc="fit">Whole world</button><button type="button" data-mc="base">Base</button><button type="button" data-mc="3d">3D</button><button type="button" data-mc="net">Portal network</button><button type="button" class="on" data-mc="labels">Portal names</button><button type="button" class="on" data-mc="pins">Pins</button></div>
           <span class="maphint" id="maphint">Drag to move · scroll or pinch to zoom</span>
           <div class="mapmsg" id="mapMsg" hidden></div>
         </div>
@@ -726,10 +726,11 @@ async function loadHeights() {
 }
 // map files: next to the page if uploaded there, otherwise from the Gist the server fills
 async function fetchFile(name) {
-  for (const u of [name, `https://gist.githubusercontent.com/${GIST_USER}/${GIST_ID}/raw/${name}`]) {
-    try { const r = await fetch(u, { cache: "no-store" }); if (r.ok) { const t = await r.clone().text(); if (t.startsWith("VALHEIM-")) return r; } } catch (e) {}
-  }
-  return null;
+  // both copies (next to the page, and the one the server uploads); the more detailed one wins
+  const got = await Promise.all([name, `https://gist.githubusercontent.com/${GIST_USER}/${GIST_ID}/raw/${name}?t=${Math.floor(Date.now() / 600000)}`].map(async u => {
+    try { const r = await fetch(u, { cache: "no-store" }); if (!r.ok) return null; const t = await r.text(); return t.startsWith("VALHEIM-") ? t : null; } catch (e) { return null; } }));
+  const ok = got.filter(Boolean).sort((a, b) => +b.split(" ")[1] - +a.split(" ")[1]);
+  return ok.length ? new Response(ok[0]) : null;
 }
 async function loadMapPicture() {
   M.tried = true;
@@ -806,6 +807,7 @@ function drawMap() {
   const S = (x, z) => { const [mx, my] = w2m(x, z); return [mx * M.s + M.ox, my * M.s + M.oy]; };
   const map = LAST_RAW && LAST_RAW.map; const fs = 12 * d;
   mctx.font = `700 ${fs}px "Alegreya Sans", sans-serif`; mctx.textAlign = "center";
+  if (M.net) { drawNetwork(S, W, H, d, map); return; }
   if (map && map.base) { const [x, y] = S(map.base.x, map.base.z); mctx.fillStyle = "#f2a93b"; mctx.strokeStyle = "#1a1208"; mctx.lineWidth = 2*d;
     mctx.beginPath(); mctx.moveTo(x, y-9*d); mctx.lineTo(x+8*d, y-1*d); mctx.lineTo(x+6*d, y-1*d); mctx.lineTo(x+6*d, y+7*d); mctx.lineTo(x-6*d, y+7*d); mctx.lineTo(x-6*d, y-1*d); mctx.lineTo(x-8*d, y-1*d); mctx.closePath(); mctx.stroke(); mctx.fill();
     label("Base", x, y + 20*d, "#f2a93b"); }
@@ -841,6 +843,65 @@ function drawMap() {
   }
   function label(t, x, y, c) { mctx.lineWidth = 3*d; mctx.strokeStyle = "rgba(0,0,0,.8)"; mctx.strokeText(t, x, y); mctx.fillStyle = c; mctx.fillText(t, x, y); }
 }
+
+// ---------- portal network: the map fades away and the portals become a subway map ----------
+const NETCOL = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#9085e9", "#e66767", "#2fb5c9"];
+function drawNetwork(S, W, H, d, map) {
+  const ps = (map && map.portals) || [];
+  mctx.fillStyle = "rgba(7,9,13,.86)"; mctx.fillRect(0, 0, W, H);
+  // portals within 60 m of each other are one station (a hub)
+  const st = [];
+  for (const p of ps) { let s2 = st.find(s => Math.hypot(s.x - p.x, s.z - p.z) < 60); if (!s2) { s2 = { x: p.x, z: p.z, ps: [] }; st.push(s2); } s2.ps.push(p); }
+  const base = map && map.base, stOf = p => st.find(s => s.ps.includes(p));
+  const lk = links(), lines = lk.map(([a, b], i) => ({ a: stOf(a), b: stOf(b), name: a.t, col: NETCOL[i % NETCOL.length] }));
+  // octilinear route: a diagonal leg, then a straight leg (like a printed subway map)
+  const route = (x1, y1, x2, y2) => { const dx = x2 - x1, dy = y2 - y1, k = Math.min(Math.abs(dx), Math.abs(dy));
+    return Math.abs(dx) > Math.abs(dy) ? [[x1, y1], [x1 + Math.sign(dx) * k, y1 + Math.sign(dy) * k], [x2, y2]] : [[x1, y1], [x1 + Math.sign(dx) * k, y1 + Math.sign(dy) * k], [x2, y2]]; };
+  // spread parallel lines that leave the same hub so they don't sit on top of each other
+  const fan = {}; lines.forEach(l => { for (const s2 of [l.a, l.b]) (fan[st.indexOf(s2)] = fan[st.indexOf(s2)] || []).push(l); });
+  const off = (l, s2) => { const g = fan[st.indexOf(s2)]; if (!g || g.length < 2) return 0; return (g.indexOf(l) - (g.length - 1) / 2) * 6 * d; };
+  mctx.save(); mctx.lineCap = "round"; mctx.lineJoin = "round";
+  const paths = lines.map(l => { let [x1, y1] = S(l.a.x, l.a.z), [x2, y2] = S(l.b.x, l.b.z); const o1 = off(l, l.a), o2 = off(l, l.b);
+    x1 += o1; y1 += o1 * .5; x2 += o2; y2 += o2 * .5; return { l, pts: route(x1, y1, x2, y2) }; });
+  for (const pass of [0, 1]) for (const { l, pts } of paths) {
+    const hot = M.hl && l.a.ps.concat(l.b.ps).some(p => p.t === l.name && p.x === M.hl.x && p.z === M.hl.z);
+    mctx.strokeStyle = pass ? l.col : "#05070a"; mctx.lineWidth = (pass ? (hot ? 7 : 5) : (hot ? 11 : 9)) * d;
+    if (pass && hot) { mctx.shadowColor = l.col; mctx.shadowBlur = 16 * d; } else mctx.shadowBlur = 0;
+    mctx.beginPath(); pts.forEach(([x, y], i) => i ? mctx.lineTo(x, y) : mctx.moveTo(x, y)); mctx.stroke();
+  }
+  mctx.shadowBlur = 0;
+  // travellers riding each line
+  for (const { l, pts } of paths) {
+    const segs = [Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]), Math.hypot(pts[2][0] - pts[1][0], pts[2][1] - pts[1][1])], tot = segs[0] + segs[1] || 1;
+    let t = ((performance.now() / 3200) + (Math.abs(l.a.x + l.b.z) % 97) / 97) % 1 * tot, i = t > segs[0] ? 1 : 0; if (i) t -= segs[0];
+    const f = t / (segs[i] || 1), x = pts[i][0] + (pts[i+1][0] - pts[i][0]) * f, y = pts[i][1] + (pts[i+1][1] - pts[i][1]) * f;
+    mctx.fillStyle = "#fff"; mctx.beginPath(); mctx.arc(x, y, 2.4 * d, 0, Math.PI * 2); mctx.fill();
+  }
+  // stations
+  const fs = 12 * d; mctx.textAlign = "center";
+  const lab = (t, x, y, c, f2) => { mctx.font = `${f2 || 700} ${fs}px "Alegreya Sans", sans-serif`; mctx.lineWidth = 3.5 * d; mctx.strokeStyle = "rgba(0,0,0,.9)"; mctx.strokeText(t, x, y); mctx.fillStyle = c; mctx.fillText(t, x, y); };
+  for (const s2 of st) {
+    const [x, y] = S(s2.x, s2.z); if (x < -40 || y < -40 || x > W + 40 || y > H + 40) continue;
+    const linked = s2.ps.filter(p => lk.some(g => g.includes(p))), hub = s2.ps.length > 1, atBase = base && Math.hypot(base.x - s2.x, base.z - s2.z) < 120;
+    const on = M.hl && s2.ps.some(p => p.x === M.hl.x && p.z === M.hl.z);
+    if (hub) {   // interchange: a white capsule with a black ring
+      const r = Math.min(16, 6 + s2.ps.length * .8) * d;
+      mctx.fillStyle = "#fff"; mctx.strokeStyle = "#05070a"; mctx.lineWidth = 3 * d; mctx.beginPath(); mctx.arc(x, y, r, 0, Math.PI * 2); mctx.fill(); mctx.stroke();
+      mctx.fillStyle = "#05070a"; mctx.font = `800 ${11 * d}px "Alegreya Sans", sans-serif`; mctx.fillText(String(s2.ps.length), x, y + 4 * d);
+      lab(atBase ? "Base hub" : "Hub", x, y - r - 6 * d, atBase ? "#f2a93b" : "#ffffff");
+    } else {
+      const p = s2.ps[0], line = lines.find(l => l.a === s2 || l.b === s2);
+      mctx.fillStyle = linked.length ? "#fff" : "#2a2f36"; mctx.strokeStyle = line ? line.col : "#6b7480"; mctx.lineWidth = 3 * d;
+      mctx.beginPath(); mctx.arc(x, y, (on ? 7 : 5) * d, 0, Math.PI * 2); mctx.fill(); mctx.stroke();
+      if (M.labels || on) lab(p.t || "(no name)", x, y - 10 * d, linked.length ? "#ffffff" : "#8d96a0", linked.length ? 700 : 500);
+    }
+  }
+  // key
+  mctx.textAlign = "left"; mctx.font = `600 ${11.5 * d}px "Alegreya Sans", sans-serif`; mctx.fillStyle = "rgba(220,226,232,.85)";
+  mctx.fillText(`${lk.length} linked pairs · ${ps.length - lk.length * 2} portal${ps.length - lk.length * 2 === 1 ? "" : "s"} without a partner (grey)`, 12 * d, H - 12 * d);
+  mctx.restore();
+}
+
 // portals with the same name are linked (exactly two of them)
 function links() {
   const ps = (LAST_RAW && LAST_RAW.map && LAST_RAW.map.portals) || [], by = {};
@@ -890,8 +951,9 @@ document.querySelector(".mapctl").addEventListener("click", e => {
     else fly3D({ x: 0, z: 0, base: true, far: true });
     return;
   }
+  if (k === "net") { M.net = !M.net; b.classList.toggle("on", M.net); if (M.view3d) { set3D(false); document.querySelector('[data-mc="3d"]').classList.remove("on"); } drawMap(); loop(); return; }
   if (k === "fit") fitView("fit"); else if (k === "base") fitView("base");
-  else if (k === "3d") { set3D(!M.view3d); b.classList.toggle("on", M.view3d); return; }
+  else if (k === "3d") { if (M.net) { M.net = false; document.querySelector('[data-mc="net"]').classList.remove("on"); } set3D(!M.view3d); b.classList.toggle("on", M.view3d); return; }
   else if (k === "labels") { M.labels = !M.labels; b.classList.toggle("on", M.labels); }
   else if (k === "pins") { M.pins = !M.pins; b.classList.toggle("on", M.pins); if (T3.pinGroup) T3.pinGroup.visible = M.pins; }
   drawMap();
@@ -919,7 +981,12 @@ async function set3D(on) {
     const HT = await loadHeights(); if (!HT) throw new Error("noheight");
     const HN = HT.n, R = HT.R, water = HT.water, H = HT.h;
     if (!M.view3d) return;
-    build3D(box, HN, R, H, water);
+    // a very detailed height file is thinned out for 3D so it stays smooth
+    const cap = matchMedia("(pointer: coarse)").matches ? 256 : 384;
+    if (HN > cap) { const n2 = cap, H2 = new Float32Array(n2 * n2);
+      for (let j = 0; j < n2; j++) for (let i = 0; i < n2; i++) H2[j * n2 + i] = H[Math.round(j / (n2 - 1) * (HN - 1)) * HN + Math.round(i / (n2 - 1) * (HN - 1))];
+      build3D(box, n2, R, H2, water); }
+    else build3D(box, HN, R, H, water);
   } catch (e) {
     box.innerHTML = `<p class="empty" style="padding:16px">${e.message === "noheight" ? "3D needs the height file, which the server sends once after the update. Try again in a few minutes." : "Couldn't start 3D on this device."}</p>`;
   }
