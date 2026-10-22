@@ -804,7 +804,9 @@ document.querySelector(".mapctl").addEventListener("click", e => {
   drawMap();
 });
 $("#plist").addEventListener("click", e => { const r = e.target.closest("[data-px]"); if (!r) return;
-  M.hl = { x: +r.dataset.px, z: +r.dataset.pz }; fitView("pt", M.hl.x, M.hl.z, 10); drawMap(); drawPortals(); });
+  M.hl = { x: +r.dataset.px, z: +r.dataset.pz };
+  if (M.view3d) { const p = ((LAST_RAW && LAST_RAW.map && LAST_RAW.map.portals) || []).find(q => q.x === M.hl.x && q.z === M.hl.z); if (p) fly3D(p); drawPortals(); return; }
+  fitView("pt", M.hl.x, M.hl.z, 10); drawMap(); drawPortals(); });
 $("#pq").addEventListener("input", drawPortals);
 window.addEventListener("resize", () => drawMap());
 // ======================= 3D view (loaded only when asked for) =======================
@@ -814,7 +816,7 @@ async function set3D(on) {
   M.view3d = on;
   $("#map").hidden = on; $("#map3d").hidden = !on;
   $("#maphint").textContent = on ? "Drag to turn · right-drag to move · scroll or pinch to zoom" : "Drag to move · scroll or pinch to zoom";
-  if (!on) { cancelAnimationFrame(T3.raf); if (T3.r) { T3.r.dispose(); $("#map3d").innerHTML = ""; T3.r = null; } drawMap(); loop(); return; }
+  if (!on) { cancelAnimationFrame(T3.raf); if (T3.r) { T3.r.dispose(); $("#map3d").innerHTML = ""; T3.r = null; } T3.cam = null; T3.anim = null; T3.fx = []; drawMap(); loop(); return; }
   const box = $("#map3d"); box.innerHTML = `<p class="empty" style="padding:16px">Loading 3D…</p>`;
   try {
     if (!window.THREE) {
@@ -888,7 +890,8 @@ function build3D(box, HN, R, H, water) {
   // portals, links and the base
   const map = LAST_RAW && LAST_RAW.map, glows = [];
   const pmat = new THREE.MeshBasicMaterial({ color: 0xc58cff });
-  for (const p of (map && map.portals) || []) { const m = new THREE.Mesh(new THREE.OctahedronGeometry(3.2), pmat); m.position.copy(P(p.x, p.z, 6)); scene.add(m); }
+  const pmeshes = [];
+  for (const p of (map && map.portals) || []) { const m = new THREE.Mesh(new THREE.OctahedronGeometry(3.2), pmat.clone()); m.position.copy(P(p.x, p.z, 6)); m.userData = p; scene.add(m); pmeshes.push(m); }
   for (const [a, b] of links()) {
     const A = P(a.x, a.z, 6), B = P(b.x, b.z, 6), mid = A.clone().add(B).multiplyScalar(.5); mid.y += A.distanceTo(B) * .35 + 20;
     const curve = new THREE.QuadraticBezierCurve3(A, mid, B);
@@ -901,13 +904,73 @@ function build3D(box, HN, R, H, water) {
   const target = P(base.x, base.z, 0);
   cam.position.set(target.x + 120, target.y + 160, target.z + 220);
   const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.target.copy(target); ctl.enableDamping = true; ctl.maxPolarAngle = Math.PI * .47; ctl.minDistance = 20; ctl.maxDistance = 1800; ctl.update();
+  Object.assign(T3, { cam, ctl, P, scene, pmeshes, THREE, anim: null, fx: [] });
+  // click a portal diamond in 3D to fly to it
+  const ray = new THREE.Raycaster(), mv = new THREE.Vector2(); let down = null;
+  renderer.domElement.addEventListener("pointerdown", e => down = [e.clientX, e.clientY]);
+  renderer.domElement.addEventListener("pointerup", e => {
+    if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
+    const r = renderer.domElement.getBoundingClientRect(); mv.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+    ray.setFromCamera(mv, cam); const hit = ray.intersectObjects(pmeshes)[0];
+    if (hit) { const p = hit.object.userData; M.hl = { x: p.x, z: p.z }; drawPortals(); fly3D(p); }
+  });
   const resize = () => { if (!T3.r) return; const w = box.clientWidth, h = box.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); };
   window.addEventListener("resize", resize);
   const tick = t => { if (!M.view3d || T3.r !== renderer) return;
     for (const gl of glows) gl.dot.position.copy(gl.curve.getPoint(((t || 0) / 2600 + gl.off) % 1));
     if (clouds[1]) clouds[1].position.y = 20 + Math.sin((t || 0) / 3000) * 1.2;
+    stepFly(t || 0);
     ctl.update(); renderer.render(scene, cam); T3.raf = requestAnimationFrame(tick); };
   tick();
+}
+
+// ---- camera flight to a portal ----
+function fly3D(p) {
+  if (!T3.cam) return;
+  const { cam, ctl, P, THREE } = T3;
+  const target = P(p.x, p.z, 6);
+  const dir = cam.position.clone().sub(ctl.target); dir.y = 0; if (dir.length() < 1) dir.set(0, 0, 1); dir.normalize();
+  const endPos = target.clone().add(dir.multiplyScalar(165)).add(new THREE.Vector3(0, 115, 0));
+  const dist = cam.position.distanceTo(endPos);
+  T3.anim = { t0: performance.now(), dur: Math.min(3200, 1200 + dist * 2.2), fromPos: cam.position.clone(), fromTgt: ctl.target.clone(), toPos: endPos, toTgt: target, lift: Math.min(260, 30 + dist * .35), p };
+  ctl.enabled = false;
+}
+function stepFly(now) {
+  const A = T3.anim; if (!A) { stepFx(now); return; }
+  const { cam, ctl } = T3;
+  let k = Math.min(1, (now - A.t0) / A.dur);
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) k = 1;
+  const e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;       // ease in-out
+  cam.position.lerpVectors(A.fromPos, A.toPos, e); cam.position.y += Math.sin(Math.PI * e) * A.lift;   // rise, glide, swoop down
+  ctl.target.lerpVectors(A.fromTgt, A.toTgt, e);
+  cam.lookAt(ctl.target);
+  if (k >= 1) { T3.anim = null; ctl.enabled = true; arrive(A.p, now); }
+  stepFx(now);
+}
+function arrive(p, now) {
+  const { THREE, scene, P, pmeshes } = T3;
+  T3.fx.forEach(f => scene.remove(f.obj)); T3.fx = [];
+  const base = P(p.x, p.z, 0);
+  // a beam of light rising from the portal
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 3, 160, 24, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xc58cff, transparent: true, opacity: .55, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+  beam.position.set(base.x, base.y + 80, base.z); scene.add(beam);
+  // its name floating above
+  const c = document.createElement("canvas"); c.width = 512; c.height = 128; const g = c.getContext("2d");
+  g.font = '800 64px "Alegreya Sans SC", sans-serif'; g.textAlign = "center"; g.lineWidth = 10; g.strokeStyle = "rgba(0,0,0,.85)"; g.fillStyle = "#f3e6ff";
+  const name = p.t || "(no name)"; g.strokeText(name, 256, 84); g.fillText(name, 256, 84);
+  const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false }));
+  label.scale.set(40, 10, 1); label.position.set(base.x, base.y + 22, base.z); label.renderOrder = 5; scene.add(label);
+  const mesh = pmeshes.find(m => m.userData.x === p.x && m.userData.z === p.z);
+  T3.fx = [{ obj: beam, kind: "beam", t0: now }, { obj: label, kind: "label", t0: now }];
+  if (mesh) T3.fx.push({ obj: mesh, kind: "pulse", t0: now, keep: true });
+}
+function stepFx(now) {
+  for (const f of T3.fx || []) {
+    const a = (now - f.t0) / 1000;
+    if (f.kind === "beam") { f.obj.material.opacity = Math.max(0, .55 * (1 - a / 6)) + .1 * Math.sin(a * 6) * (a < 6); f.obj.scale.y = Math.min(1, a * 2.5); f.obj.position.y = f.obj.position.y; }
+    if (f.kind === "pulse") { const s = 1 + .5 * Math.max(0, Math.sin(a * 5)) * Math.max(0, 1 - a / 6); f.obj.scale.setScalar(s); f.obj.material.color.setHex(a < 6 ? 0xffffff : 0xc58cff); }
+  }
 }
 
 function mapRefresh() { buildFog(); if (!M.tried) loadMapPicture(); else if (!M.view3d) drawMap(); drawPortals(); loop(); }
