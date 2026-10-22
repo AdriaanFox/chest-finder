@@ -367,7 +367,7 @@ body.tv .tvbar{display:flex}
   <section id="histSec">
     <p class="label">ITEM HISTORY</p>
     <div class="panel">
-      <div class="seg" id="hrange"><button class="tab" data-hr="24" type="button">24 hours</button><button class="tab" data-hr="72" type="button">3 days</button><button class="tab" data-hr="168" type="button">7 days</button><button class="tab" data-hr="720" type="button">30 days</button></div>
+      <div class="seg" id="hrange"><button class="tab" data-hr="24" type="button">24 hours</button><button class="tab" data-hr="72" type="button">3 days</button><button class="tab" data-hr="168" type="button">7 days</button></div>
       <div class="hpick"><div class="hsel" id="hsel"></div><input id="hq" type="search" list="hlist" placeholder="Add an item…" autocomplete="off"><datalist id="hlist"></datalist></div>
       <div class="hchart" id="hchart"><p class="empty">Waiting for the server…</p></div>
       <div class="hmovers" id="hmovers"></div>
@@ -1520,7 +1520,7 @@ $("#spinBtn").addEventListener("click", () => { if (!B3.ctl) return; B3.ctl.auto
 // ---------- stock over time (hourly totals the server keeps for 7 days) ----------
 const HCOL = ["#3987e5", "#d95926", "#199e70", "#c98500"];   // fixed order, validated for the dark panel
 let HSEL = null; try { HSEL = JSON.parse(localStorage.getItem("histSel") || "null"); } catch (e) {}
-let HRANGE = 168; try { HRANGE = +localStorage.getItem("histRange") || 168; } catch (e) {}
+let HRANGE = 168; try { HRANGE = Math.min(168, +localStorage.getItem("histRange") || 168); } catch (e) {}
 const saveHSel = () => { try { localStorage.setItem("histSel", JSON.stringify(HSEL)); } catch (e) {} };
 function histData() {
   const h = LAST_RAW && LAST_RAW.hist; if (!h || !h.t || h.t.length < 1) return null;
