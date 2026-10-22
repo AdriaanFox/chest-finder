@@ -159,6 +159,45 @@ body.tv .tvbar{display:flex}
 .tvclock{font:800 clamp(20px,2vw,30px) var(--display);color:var(--ember);font-variant-numeric:tabular-nums}
 .mapwrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px}
 @media (max-width:860px){.mapwrap{grid-template-columns:1fr}}
+.skychip{position:absolute;top:10px;right:10px;z-index:3;display:flex;flex-direction:column;align-items:flex-end;gap:1px;padding:7px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);
+  background:rgba(10,14,20,.55);backdrop-filter:blur(6px);color:#f3efe6;font:inherit;cursor:pointer;text-align:right}
+.skychip b{font:800 15px var(--display);letter-spacing:.04em} .skychip span{font-size:12.5px;color:#c9d2da}
+.skychip:hover,.skychip:focus-visible{border-color:var(--ember);outline:none}
+.basebar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.basebox{position:relative;margin-top:12px;height:min(70vh,600px);border:1px solid var(--wood-line);border-radius:14px;overflow:hidden;background:#0a1016;touch-action:none}
+.basetip{position:absolute;z-index:4;pointer-events:none;padding:4px 10px;border-radius:8px;background:rgba(10,14,20,.8);color:#f3efe6;font:700 14px var(--body);transform:translate(-50%,-140%)}
+.basebar .tab.on{border-color:var(--ember);color:var(--ember)}
+.hpick{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.hsel{display:flex;flex-wrap:wrap;gap:8px}
+.hchip{display:inline-flex;align-items:center;gap:7px;padding:4px 6px 4px 11px;border:1px solid var(--line);border-radius:999px;background:var(--bg2);font-size:15px}
+.hchip i{width:10px;height:10px;border-radius:50%}
+.hchip button{border:0;background:none;color:var(--muted);font:inherit;cursor:pointer;padding:0 5px;border-radius:50%} .hchip button:hover{color:var(--fg)}
+#hq{font:inherit;padding:5px 12px;border:1px solid var(--line);border-radius:999px;background:var(--bg2);color:var(--fg);min-width:170px}
+#hq:focus{outline:none;border-color:var(--ember)}
+.hchart{position:relative;min-height:120px}
+.hchart svg{display:block;width:100%;height:auto;overflow:visible}
+.htip{position:absolute;pointer-events:none;z-index:3;background:rgba(10,14,20,.92);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:14px;min-width:150px;transform:translateX(-50%)}
+.htip b{display:block;font:800 13px var(--display);letter-spacing:.06em;color:var(--muted);margin-bottom:3px}
+.htip div{display:flex;align-items:center;gap:7px;justify-content:space-between} .htip div span{display:inline-flex;align-items:center;gap:6px}
+.htip i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.hmovers{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;color:var(--muted);font-size:14.5px}
+.hmovers button{font:inherit;color:var(--fg);background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:2px 11px;cursor:pointer}
+.hmovers button:hover{border-color:var(--ember)} .hmovers .up{color:var(--ok)} .hmovers .down{color:var(--full)}
+.htable{margin-top:10px;color:var(--muted)} .htable summary{cursor:pointer;font-size:14.5px}
+.htable table{width:100%;border-collapse:collapse;margin-top:8px;font-size:14.5px;color:var(--fg);font-variant-numeric:tabular-nums}
+.htable th,.htable td{text-align:right;padding:5px 8px;border-bottom:1px solid var(--line)} .htable th:first-child,.htable td:first-child{text-align:left}
+.htable th{color:var(--muted);font-weight:600}
+#toasts{position:fixed;right:16px;bottom:16px;z-index:50;display:flex;flex-direction:column;gap:8px;max-width:min(380px,calc(100vw - 32px))}
+.toast{display:flex;gap:10px;align-items:center;padding:10px 14px;border-radius:12px;background:rgba(22,27,24,.96);border:1px solid var(--wood-line);box-shadow:0 10px 30px rgba(0,0,0,.45);cursor:pointer;animation:tin .35s ease-out;transition:opacity .5s,transform .5s}
+.toast.out{opacity:0;transform:translateX(30px)}
+.toast .ico{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:15px;color:#111}
+@keyframes tin{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.cell .delta{position:absolute;left:50%;top:3px;white-space:nowrap;overflow-wrap:normal;transform:translateX(-50%);font:800 13px var(--body);padding:1px 6px;border-radius:999px;pointer-events:none;animation:dfloat 3.2s ease-out forwards;z-index:2}
+.cell .delta.up{background:var(--ok);color:#0e1a12} .cell .delta.down{background:var(--full);color:#2a0d09}
+@keyframes dfloat{0%{opacity:0;transform:translate(-50%,6px)}12%{opacity:1;transform:translate(-50%,-10px)}75%{opacity:1;transform:translate(-50%,-18px)}100%{opacity:0;transform:translate(-50%,-26px)}}
+.status.blip{animation:blip 1.2s ease-out}
+@keyframes blip{0%{border-color:var(--ok);box-shadow:0 0 0 0 rgba(111,211,143,.5)}100%{box-shadow:0 0 0 12px rgba(111,211,143,0)}}
+@media (prefers-reduced-motion:reduce){.toast,.cell .delta,.status.blip{animation:none}}
 .mapbox{position:relative;border:1px solid var(--wood-line);border-radius:14px;overflow:hidden;background:#0a1016;touch-action:none;height:min(72vh,640px)}
 #map{display:block;width:100%;height:100%;cursor:grab}
 #map.drag{cursor:grabbing}
@@ -209,7 +248,7 @@ body.tv .tvbar{display:flex}
     </div>
   </header>
 
-  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#feedSec">Feed</a><a href="#catSec">Totals</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
+  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#baseSec">Base</a><a href="#feedSec">Feed</a><a href="#catSec">Totals</a><a href="#histSec">History</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
 
   <div class="stats" id="stats"></div>
 
@@ -259,6 +298,21 @@ body.tv .tvbar{display:flex}
     </div>
   </section>
 
+
+  <section id="baseSec">
+    <p class="label">OUR BASE IN 3D</p>
+    <div class="panel basepanel">
+      <div class="basebar">
+        <button class="bigbtn" id="baseBtn" type="button">Show the base in 3D</button>
+        <button class="tab" id="roofBtn" type="button" hidden>Hide roofs</button>
+        <button class="tab" id="spinBtn" type="button" hidden>Spin</button>
+        <span class="note" id="baseInfo">Waiting for the server…</span>
+      </div>
+      <div class="basebox" id="baseBox" hidden><div id="base3d" style="position:absolute;inset:0"></div><div class="basetip" id="baseTip" hidden></div>
+        <span class="maphint">Drag to turn · right-drag to move · scroll or pinch to zoom</span></div>
+    </div>
+  </section>
+
   <section id="feedSec">
     <p class="label">WHAT'S HAPPENING</p>
     <div class="panel">
@@ -270,6 +324,17 @@ body.tv .tvbar{display:flex}
   <section id="catSec">
     <p class="label">TOTALS BY CATEGORY</p>
     <div class="panel"><div class="cats" id="cats"></div></div>
+  </section>
+
+
+  <section id="histSec">
+    <p class="label">STOCK OVER TIME</p>
+    <div class="panel">
+      <div class="hpick"><div class="hsel" id="hsel"></div><input id="hq" type="search" list="hlist" placeholder="Add an item…" autocomplete="off"><datalist id="hlist"></datalist></div>
+      <div class="hchart" id="hchart"><p class="empty">Waiting for the server…</p></div>
+      <div class="hmovers" id="hmovers"></div>
+      <details class="htable"><summary>Show as a table</summary><div id="htable"></div></details>
+    </div>
   </section>
 
   <section id="chgSec">
@@ -365,7 +430,12 @@ async function load() {
       const r = await fetch(u, { cache: "no-store" }); if (!r.ok) continue;
       let w; if (u.includes("api.github.com")) { const g = await r.json(); w = JSON.parse(g.files["wall.json"].content); } else w = await r.json();
       if (!w.chests) continue;
-      absorb(w); showStatus(); rerender(); return;
+      if (LAST_RAW && w.updated && w.updated === LAST_RAW.updated) { showStatus(); return; }   // nothing new yet
+      const before = LAST_RAW ? new Set((LAST_RAW.events || []).map(e => e.t + e.m)) : null;
+      absorb(w); showStatus(); rerender(); PREV = null;
+      if (before) for (const e of (w.events || []).filter(e => !before.has(e.t + e.m)).slice(-3)) toast(e);
+      if (before) { const st = $("#status"); st.classList.remove("blip"); void st.offsetWidth; st.classList.add("blip"); }
+      return;
     } catch (e) {}
   }
   showStatus(true);
@@ -376,7 +446,7 @@ function showStatus(failed) {
   if (!LIVE) { tx.textContent = failed ? "Couldn't reach the server count. Showing where things belong." : "Loading the latest chest count…"; return; }
   const old = UPDATED && (Date.now() - UPDATED) > 15 * 60000;
   st.classList.add(old ? "stale" : "live");
-  tx.textContent = UPDATED ? (old ? "Last seen " + ago(UPDATED) + " · server may be off" : "Live · updated " + ago(UPDATED)) : "Live";
+  tx.textContent = UPDATED ? (old ? "Last seen " + ago(UPDATED) + " · server may be off" : "Live · updated " + ago(UPDATED) + " · checks every 30 s") : "Live";
 }
 const fillOf = sign => LIVE && LIVE[sign] ? Math.min(1, LIVE[sign].slots / LIVE[sign].size) : null;
 function meterHtml(sign) {
@@ -409,7 +479,8 @@ function drawWall() {
   if (PREV && LIVE) wall.querySelectorAll(".cell").forEach(el => {
     const L = LIVE[el.dataset.sign]; if (!L) return;
     const now = Object.values(L.items).reduce((a,b)=>a+b,0);
-    if (PREV[el.dataset.sign] !== undefined && PREV[el.dataset.sign] !== now) el.classList.add("pulse");
+    if (PREV[el.dataset.sign] !== undefined && PREV[el.dataset.sign] !== now) { el.classList.add("pulse");
+      const d = now - PREV[el.dataset.sign], b = document.createElement("span"); b.className = "delta " + (d > 0 ? "up" : "down"); b.textContent = (d > 0 ? "+" : "−") + fmt(Math.abs(d)); el.appendChild(b); }
   });
   $("#legend").innerHTML = mode === "heat"
     ? `<span><i style="background:var(--ok)"></i>Room to spare</span><span><i style="background:var(--warn)"></i>Over 70% full</span><span><i style="background:var(--full)"></i>90% or more</span>`
@@ -836,10 +907,10 @@ function build3D(box, HN, R, H, water) {
   const W = box.clientWidth, Hh = box.clientHeight, SZ = 1000, k = SZ / (2 * R), ex = 3;   // heights x3 so hills read
   const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); renderer.setSize(W, Hh);
   box.appendChild(renderer.domElement); T3.r = renderer;
-  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a1016); scene.fog = new THREE.Fog(0x0a1016, 900, 2200);
+  const scene = new THREE.Scene();
   const cam = new THREE.PerspectiveCamera(45, W / Hh, 1, 5000);
-  scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x1a140e, .85));
-  const sun = new THREE.DirectionalLight(0xfff1d6, .9); sun.position.set(-400, 600, 300); scene.add(sun);
+  const sky = makeSky(THREE, scene, { span: 700, high: 260, dist: 3000, fogNear: 900, fogFar: 2200 });
+  const skyPaint = skyChip(box.parentElement.querySelector(".skyslot") || box, null); let skyTick = 0;
   // ground texture = the 2D map with fog baked in
   const tex = document.createElement("canvas"); tex.width = tex.height = M.N || 1024; const tx = tex.getContext("2d");
   tx.fillStyle = "#0a1016"; tx.fillRect(0, 0, tex.width, tex.height);
@@ -921,8 +992,408 @@ function build3D(box, HN, R, H, water) {
     for (const gl of glows) gl.dot.position.copy(gl.curve.getPoint(((t || 0) / 2600 + gl.off) % 1));
     if (clouds[1]) clouds[1].position.y = 20 + Math.sin((t || 0) / 3000) * 1.2;
     stepFly(t || 0);
+    sky.update(t || 0, cam, ctl.target, 0);
+    const L = sky.light; sea.material.color.setRGB(.11 * (.4 + .6 * L), .29 * (.4 + .6 * L), .42 * (.4 + .6 * L));
+    for (const cl of clouds) cl.material.color.setScalar(.15 + .85 * Math.pow(L, 1.6));
+    if ((t || 0) > skyTick) { skyTick = (t || 0) + 5000; skyPaint(); }
     ctl.update(); renderer.render(scene, cam); T3.raf = requestAnimationFrame(tick); };
   tick();
+}
+
+
+// ---------- live sky: the server's time of day and weather drive the 3D light ----------
+// Valheim day = 30 real minutes; the day fraction runs 0..1 from midnight, sunrise ~0.25, sunset ~0.75
+const SKY_KEYS = [
+  [0.00, "#04060d", "#0c1222", "#8ea4d6", .20, .42, 1],
+  [0.20, "#060915", "#141b2e", "#8ea4d6", .20, .44, .9],
+  [0.25, "#2b3462", "#e3895c", "#ffb27a", .55, .55, .25],
+  [0.32, "#4a82c4", "#f0caa0", "#ffe2b8", .85, .72, 0],
+  [0.50, "#3b7ac8", "#a8ccee", "#fff4e0", 1.0, .86, 0],
+  [0.68, "#4a82c4", "#f0caa0", "#ffe2b8", .85, .72, 0],
+  [0.75, "#382b5a", "#ec7a4a", "#ff9a5a", .55, .55, .25],
+  [0.80, "#0a0f20", "#1a2240", "#8ea4d6", .22, .45, .9],
+  [1.00, "#04060d", "#0c1222", "#8ea4d6", .20, .42, 1]];
+let SKY_DAYLIGHT = false;
+try { SKY_DAYLIGHT = localStorage.getItem("skyDay") === "1"; } catch (e) {}
+function skyFraction() {
+  if (SKY_DAYLIGHT) return .5;
+  if (!SERVER || SERVER.time == null) return .5;
+  const run = UPDATED && (Date.now() - UPDATED) < 15 * 60000 ? (Date.now() - UPDATED) / 1800000 : 0;   // keep the clock moving between updates
+  return ((SERVER.time + run) % 1 + 1) % 1;
+}
+function weatherKind(w) {
+  w = (w || "").toLowerCase();
+  if (/snow/.test(w)) return /storm/.test(w) ? "blizzard" : "snow";
+  if (/ash|cinder|meteor/.test(w)) return "ash";
+  if (/thunder|storm/.test(w)) return "storm";
+  if (/rain/.test(w)) return /light/.test(w) ? "drizzle" : "rain";
+  if (/mist|fog|dark/.test(w)) return "mist";
+  return "clear";
+}
+function makeSky(THREE, scene, o) {
+  // o: { span: precipitation box width, high: its height, dist: sky distance, fogNear, fogFar }
+  const hemi = new THREE.HemisphereLight(0xdfe8ff, 0x1a140e, .85); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff1d6, .9); scene.add(sun); scene.add(sun.target);
+  const bgc = document.createElement("canvas"); bgc.width = 4; bgc.height = 256; const bgx = bgc.getContext("2d");
+  const bg = new THREE.CanvasTexture(bgc); scene.background = bg;
+  scene.fog = new THREE.Fog(0x0a1016, o.fogNear, o.fogFar);
+  const disc = (inner, outer) => { const c = document.createElement("canvas"); c.width = c.height = 128; const g = c.getContext("2d");
+    const r = g.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, inner); r.addColorStop(.22, inner); r.addColorStop(.32, outer); r.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = r; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); };
+  const sunSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: disc("#fffbe8", "rgba(255,200,120,.35)"), transparent: true, depthWrite: false, fog: false }));
+  const moonSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: disc("#eef3ff", "rgba(170,190,255,.22)"), transparent: true, depthWrite: false, fog: false }));
+  sunSpr.scale.setScalar(o.dist * .16); moonSpr.scale.setScalar(o.dist * .1); scene.add(sunSpr, moonSpr);
+  // stars on a dome that follows the camera
+  const sg = new THREE.BufferGeometry(), sp = new Float32Array(1400 * 3);
+  for (let i = 0; i < 1400; i++) { const u = Math.random() * Math.PI * 2, v = Math.acos(1 - Math.random() * .95);
+    sp[i*3] = Math.sin(v) * Math.cos(u) * o.dist; sp[i*3+1] = Math.cos(v) * o.dist; sp[i*3+2] = Math.sin(v) * Math.sin(u) * o.dist; }
+  sg.setAttribute("position", new THREE.BufferAttribute(sp, 3));
+  const stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+  scene.add(stars);
+  // rain / snow / ash around the point the camera looks at
+  const NP = 2600, pg = new THREE.BufferGeometry(), pp = new Float32Array(NP * 3), seed = new Float32Array(NP);
+  for (let i = 0; i < NP; i++) { pp[i*3] = (Math.random() - .5) * o.span; pp[i*3+1] = Math.random() * o.high; pp[i*3+2] = (Math.random() - .5) * o.span; seed[i] = Math.random(); }
+  pg.setAttribute("position", new THREE.BufferAttribute(pp, 3));
+  const pmat = new THREE.PointsMaterial({ color: 0xa9c3dc, size: 2, sizeAttenuation: false, transparent: true, opacity: .7, depthWrite: false });
+  const drops = new THREE.Points(pg, pmat); drops.frustumCulled = false; scene.add(drops);
+  const C = h => new THREE.Color(h), tmp = new THREE.Color(), tmp2 = new THREE.Color();
+  let lastBg = "", flash = 0, nextFlash = 0, lastT = 0;
+  const S = { hemi, sun, kind: "clear", f: .5, light: 1 };
+  S.update = (now, cam, target, extra) => {
+    const f = skyFraction(), kind = SKY_DAYLIGHT ? "clear" : weatherKind(SERVER && SERVER.weather), dt = Math.min(.1, (now - lastT) / 1000 || 0); lastT = now;
+    S.f = f; S.kind = kind;
+    let a = SKY_KEYS[0], b = SKY_KEYS[1]; for (let i = 0; i < SKY_KEYS.length - 1; i++) if (f >= SKY_KEYS[i][0] && f <= SKY_KEYS[i+1][0]) { a = SKY_KEYS[i]; b = SKY_KEYS[i+1]; break; }
+    const t = (f - a[0]) / Math.max(1e-6, b[0] - a[0]);
+    const top = C(a[1]).lerp(C(b[1]), t), hor = C(a[2]).lerp(C(b[2]), t), sunC = C(a[3]).lerp(C(b[3]), t);
+    let sunI = a[4] + (b[4] - a[4]) * t, hemiI = a[5] + (b[5] - a[5]) * t, starA = a[6] + (b[6] - a[6]) * t;
+    // weather greys the sky and dims the sun
+    const grey = { clear: 0, mist: .45, drizzle: .35, rain: .55, storm: .7, snow: .5, blizzard: .7, ash: .5 }[kind];
+    if (grey) { const g = kind === "ash" ? C("#4a2a22") : C("#5d6670"); const lum = .25 + .75 * Math.min(1, hemiI);
+      tmp.copy(g).multiplyScalar(lum); top.lerp(tmp, grey); hor.lerp(tmp.clone().multiplyScalar(1.15), grey); sunI *= 1 - grey * .7; starA *= Math.max(0, 1 - grey * 2.2); }
+    if (kind === "storm" && now > nextFlash) { flash = 1; nextFlash = now + 5000 + Math.random() * 9000; }
+    flash = Math.max(0, flash - dt * 5);
+    hemi.intensity = hemiI + flash * .9; hemi.color.copy(top).lerp(C("#ffffff"), .55); hemi.groundColor.set(0x1a140e);
+    // sun by day, moon by night (east to west)
+    const ang = (f - .25) * Math.PI * 2, day = Math.sin(ang) > -.05;
+    const dir = new THREE.Vector3(Math.cos(ang), Math.sin(ang), .35).normalize();
+    const ldir = day ? dir : dir.clone().multiplyScalar(-1);
+    sun.position.copy(target).add(ldir.clone().multiplyScalar(o.dist * .5)); sun.target.position.copy(target);
+    sun.color.copy(sunC); sun.intensity = Math.max(.12, sunI) + flash * .4;
+    sunSpr.position.copy(cam.position).add(dir.clone().multiplyScalar(o.dist * .9)); sunSpr.visible = dir.y > -.08 && !grey;
+    moonSpr.position.copy(cam.position).add(dir.clone().multiplyScalar(-o.dist * .9)); moonSpr.visible = dir.y < .08 && grey < .6;
+    stars.position.copy(cam.position); stars.material.opacity = Math.max(0, Math.min(1, starA));
+    // background gradient (only redrawn when it changes)
+    if (flash > .05) hor.lerp(C("#dfe6ff"), flash * .6), top.lerp(C("#9fb0d8"), flash * .5);
+    const key = top.getHexString() + hor.getHexString();
+    if (key !== lastBg) { lastBg = key; const gr = bgx.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, "#" + top.getHexString()); gr.addColorStop(.62, "#" + hor.getHexString()); gr.addColorStop(1, "#" + hor.getHexString());
+      bgx.fillStyle = gr; bgx.fillRect(0, 0, 4, 256); bg.needsUpdate = true; }
+    scene.fog.color.copy(hor);
+    const thick = { clear: 1, mist: .45, drizzle: .8, rain: .7, storm: .6, snow: .7, blizzard: .45, ash: .6 }[kind];
+    scene.fog.near = o.fogNear * thick; scene.fog.far = o.fogFar * (thick < 1 ? .55 + thick * .45 : 1);
+    S.light = Math.min(1, hemiI + sunI * .4);
+    // precipitation
+    const fall = { rain: 1, drizzle: .6, storm: 1.3, snow: .12, blizzard: .25, ash: .09 }[kind];
+    drops.visible = !!fall;
+    if (fall) {
+      pmat.color.set(kind === "ash" ? 0xe0794a : /snow|blizzard/.test(kind) ? 0xffffff : 0xa9c3dc);
+      pmat.size = /snow|blizzard|ash/.test(kind) ? 2.6 : 1.7; pmat.opacity = kind === "drizzle" ? .45 : .75;
+      const vis = kind === "drizzle" ? .5 : 1, P = pg.attributes.position.array, sp2 = o.high * fall * 1.1 * dt, wind = (kind === "blizzard" ? .5 : kind === "storm" ? .2 : .05) * o.high * dt;
+      for (let i = 0; i < NP; i++) {
+        if (seed[i] > vis) { P[i*3+1] = -1e5; continue; }
+        P[i*3+1] -= sp2 * (.7 + seed[i] * .6); P[i*3] += wind * (.5 + seed[i]);
+        if (/snow|blizzard|ash/.test(kind)) P[i*3+2] += Math.sin(now / 900 + seed[i] * 40) * o.span * .0006;
+        if (P[i*3+1] < 0 || P[i*3+1] > o.high + 1) { P[i*3+1] = o.high; P[i*3] = (Math.random() - .5) * o.span; P[i*3+2] = (Math.random() - .5) * o.span; }
+        if (P[i*3] > o.span / 2) P[i*3] -= o.span;
+      }
+      pg.attributes.position.needsUpdate = true;
+      drops.position.set(target.x, target.y + (extra || 0), target.z);
+    }
+  };
+  return S;
+}
+function skyChip(box, onToggle) {
+  const el = document.createElement("button"); el.type = "button"; el.className = "skychip";
+  el.title = "Switch between the server's live sky and plain daylight";
+  el.addEventListener("click", () => { SKY_DAYLIGHT = !SKY_DAYLIGHT; try { localStorage.setItem("skyDay", SKY_DAYLIGHT ? "1" : "0"); } catch (e) {} paint(); onToggle && onToggle(); });
+  const paint = () => {
+    const f = skyFraction(), night = f < .23 || f > .77;
+    el.innerHTML = SKY_DAYLIGHT ? `<b>☀ Daylight</b><span>tap for live sky</span>`
+      : `<b>${night ? "☾" : "☀"} ${SERVER && SERVER.time != null ? clock(f) : "Live sky"}</b><span>${SERVER && SERVER.weather ? esc(weatherName(SERVER.weather)) : "waiting for the server"} · tap for daylight</span>`;
+  };
+  paint(); box.appendChild(el); return paint;
+}
+
+
+// ---------- the base in 3D (building pieces sent by the server) ----------
+const B3 = {};
+const prettyPart = n => (n || "").replace(/^piece_/, "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+function partLook(n) {
+  n = (n || "").toLowerCase();
+  if (/portal/.test(n)) return { c: 0x8e5cc8, e: 0x2a0f45 };
+  if (/fire|hearth|brazier|torch|sconce|forge|kiln|smelter|furnace|lantern|candle/.test(n)) return { c: 0x7a5236, e: 0xb3501a, fire: true };
+  if (/crystal|glass|window/.test(n)) return { c: 0xbfe3ff, t: .55 };
+  if (/chest|barrel/.test(n)) return { c: 0x9a6232 };
+  if (/stone|marble|grausten|ashwall|flametal/.test(n)) return { c: 0x8f8d88 };
+  if (/darkwood|dark_/.test(n)) return { c: 0x4d3829 };
+  if (/roof/.test(n)) return { c: 0xb09358 };
+  if (/iron|metal|cage|anvil|workbench|cauldron/.test(n)) return { c: 0x6e7780 };
+  if (/sign/.test(n)) return { c: 0xb68a52 };
+  if (/karve|longship|raft|ship|boat/.test(n)) return { c: 0x7a5a3a };
+  return { c: 0x9b6b3f };
+}
+function partGeo(THREE, sh) {
+  const b = sh.b, s = sh.s || [];
+  const box = () => { const g = new THREE.BoxGeometry(Math.max(.06, b[3] - b[0]), Math.max(.06, b[4] - b[1]), Math.max(.06, b[5] - b[2]));
+    g.translate((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, -(b[2] + b[5]) / 2); return g; };
+  const pts = [];
+  for (let i = 0; i + 2 < s.length; i += 3) { const p = new THREE.Vector3(s[i], s[i+1], -s[i+2]); if (!pts.some(q => q.distanceTo(p) < .05)) pts.push(p); }
+  try {
+    if (pts.length === 2) {           // a beam or pole: a thin bar between its two ends
+      const d = pts[0].distanceTo(pts[1]); if (d < .3) return box();
+      const g = new THREE.BoxGeometry(.22, .22, d), m = new THREE.Matrix4();
+      const dir = pts[1].clone().sub(pts[0]).normalize(), up = Math.abs(dir.y) > .95 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+      m.lookAt(pts[0], pts[1], up); g.applyMatrix4(m); g.translate(...pts[0].clone().add(pts[1]).multiplyScalar(.5).toArray()); return g;
+    }
+    if (pts.length >= 3) {            // a wall, floor or roof: a slab through its corners
+      const p0 = pts[0]; let a = pts[1], best = 0;
+      for (const p of pts) { const d = p.distanceTo(p0); if (d > best) { best = d; a = p; } }
+      const u = a.clone().sub(p0).normalize(); let n = null, area = 0;
+      for (const p of pts) { const c = u.clone().cross(p.clone().sub(p0)); if (c.length() > area) { area = c.length(); n = c; } }
+      if (!n || area < .05) return box();
+      n.normalize();
+      if (pts.some(p => Math.abs(p.clone().sub(p0).dot(n)) > .15)) return box();
+      const v = n.clone().cross(u);
+      let P2 = pts.map(p => { const d = p.clone().sub(p0); return [d.dot(u), d.dot(v)]; }).sort((x, y) => x[0] - y[0] || x[1] - y[1]);
+      const cr = (o, p, q) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+      const lo = [], hi = []; for (const p of P2) { while (lo.length >= 2 && cr(lo[lo.length-2], lo[lo.length-1], p) <= 0) lo.pop(); lo.push(p); }
+      for (const p of P2.slice().reverse()) { while (hi.length >= 2 && cr(hi[hi.length-2], hi[hi.length-1], p) <= 0) hi.pop(); hi.push(p); }
+      const hull = lo.slice(0, -1).concat(hi.slice(0, -1)); if (hull.length < 3) return box();
+      // thickness: how deep the visible mesh is along the slab's normal
+      let mn = 1e9, mx = -1e9; for (let k = 0; k < 8; k++) { const c = new THREE.Vector3(k & 1 ? b[3] : b[0], k & 2 ? b[4] : b[1], -(k & 4 ? b[5] : b[2])); const d = c.sub(p0).dot(n); mn = Math.min(mn, d); mx = Math.max(mx, d); }
+      const th = Math.min(.45, Math.max(.08, mx - mn));
+      const shape = new THREE.Shape(hull.map(([x, y]) => new THREE.Vector2(x, y)));
+      const g = new THREE.ExtrudeGeometry(shape, { depth: th, bevelEnabled: false }); g.translate(0, 0, -th / 2);
+      g.applyMatrix4(new THREE.Matrix4().makeBasis(u, v, n)); g.translate(p0.x, p0.y, p0.z); return g;
+    }
+  } catch (e) {}
+  return box();
+}
+function drawBaseSec() {
+  const b = LAST_RAW && LAST_RAW.build, info = $("#baseInfo"), btn = $("#baseBtn");
+  if (!b || !b.parts) { btn.disabled = true; info.textContent = LAST_RAW ? "The base model arrives once the server runs Wall Live 1.6." : "Waiting for the server…"; return; }
+  btn.disabled = false;
+  info.textContent = `${fmt(b.parts.length)} building pieces within ${b.r} m of the storage wall · updates every 10 minutes`;
+  const sig = b.parts.length + ":" + b.shapes.length + ":" + JSON.stringify(b.parts[b.parts.length - 1] || "");
+  if (B3.r && B3.sig !== sig) buildBase(true);
+  B3.sig = sig;
+}
+async function openBase(on) {
+  const boxEl = $("#baseBox"); B3.open = on; boxEl.hidden = !on;
+  $("#baseBtn").textContent = on ? "Close the 3D base" : "Show the base in 3D";
+  $("#roofBtn").hidden = $("#spinBtn").hidden = !on;
+  if (!on) { cancelAnimationFrame(B3.raf); if (B3.r) { B3.r.dispose(); $("#base3d").innerHTML = ""; B3.r = null; } return; }
+  $("#base3d").innerHTML = `<p class="empty" style="padding:16px">Loading 3D…</p>`;
+  try {
+    if (!window.THREE) {
+      await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js");
+      await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js");
+    }
+    if (B3.open) buildBase(false);
+  } catch (e) { $("#base3d").innerHTML = `<p class="empty" style="padding:16px">Couldn't start 3D on this device.</p>`; }
+}
+function buildBase(keepCam) {
+  const THREE = window.THREE, data = LAST_RAW && LAST_RAW.build, box = $("#base3d"); if (!THREE || !data) return;
+  const old = keepCam && B3.cam ? { p: B3.cam.position.clone(), t: B3.ctl.target.clone() } : null;
+  cancelAnimationFrame(B3.raf); if (B3.r) B3.r.dispose(); box.innerHTML = "";
+  const W = box.clientWidth, H = box.clientHeight;
+  const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); renderer.setSize(W, H);
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  box.appendChild(renderer.domElement); B3.r = renderer;
+  const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(45, W / H, .3, 1500);
+  const sky = makeSky(THREE, scene, { span: 130, high: 55, dist: 420, fogNear: 110, fogFar: 330 });
+  sky.sun.castShadow = true; const sc = sky.sun.shadow.camera; sc.left = sc.bottom = -75; sc.right = sc.top = 75; sc.near = 1; sc.far = 600;
+  sky.sun.shadow.mapSize.set(2048, 2048); sky.sun.shadow.bias = -.0006;
+  const paint = skyChip(box, null); let chipT = 0;
+  // ground
+  const gn = data.gn, gs = data.gs, size = (gn - 1) * gs, G = data.ground;
+  const g = new THREE.PlaneGeometry(size, size, gn - 1, gn - 1); g.rotateX(-Math.PI / 2);
+  const pos = g.attributes.position, col = new Float32Array(pos.count * 3), water = 30 - data.y0;
+  for (let i = 0; i < pos.count; i++) {
+    const c = i % gn, r = Math.floor(i / gn), h = G[(gn - 1 - r) * gn + c]; pos.setY(i, h);
+    const nse = (Math.sin(c * 1.7 + r * .9) + Math.sin(c * .43 - r * 1.3)) * .03, under = h < water + .3;
+    const base = under ? [.55, .5, .38] : [.33 + nse, .45 + nse, .22];
+    col[i*3] = base[0]; col[i*3+1] = base[1]; col[i*3+2] = base[2];
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
+  const ground = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true })); ground.receiveShadow = true; scene.add(ground);
+  if (G.some(h => h < water)) { const sea = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshLambertMaterial({ color: 0x2d6a8e, transparent: true, opacity: .7 }));
+    sea.rotation.x = -Math.PI / 2; sea.position.y = water; scene.add(sea); }
+  // pieces: one instanced mesh per kind
+  const byShape = {}; for (const p of data.parts) (byShape[p[0]] = byShape[p[0]] || []).push(p);
+  const meshes = [], q = new THREE.Quaternion(), m4 = new THREE.Matrix4(), one = new THREE.Vector3(1, 1, 1), lights = [];
+  for (const [si, list] of Object.entries(byShape)) {
+    const sh = data.shapes[si]; if (!sh) continue;
+    const look = partLook(sh.n);
+    const mat = new THREE.MeshLambertMaterial({ color: look.c, emissive: look.e || 0, transparent: !!look.t, opacity: look.t || 1 });
+    const im = new THREE.InstancedMesh(partGeo(THREE, sh), mat, list.length);
+    list.forEach((p, k) => {
+      if (p.length === 5) q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[4] * Math.PI / 180);
+      else q.set(-p[4], -p[5], p[6], p[7]);
+      m4.compose(new THREE.Vector3(p[1], p[2], -p[3]), q, one); im.setMatrixAt(k, m4);
+      if (look.fire && lights.length < 8) lights.push(new THREE.Vector3(p[1], p[2] + 1, -p[3]));
+    });
+    im.castShadow = !look.t; im.receiveShadow = true; im.userData = { name: sh.n, roof: /roof/.test(sh.n), fire: !!look.fire };
+    scene.add(im); meshes.push(im);
+  }
+  const fireLights = lights.map(v => { const l = new THREE.PointLight(0xff8a3c, 0, 14, 2); l.position.copy(v); scene.add(l); return l; });
+  // look at the middle of the buildings
+  const ctr = new THREE.Vector3(); data.parts.forEach(p => ctr.add(new THREE.Vector3(p[1], p[2], -p[3]))); if (data.parts.length) ctr.multiplyScalar(1 / data.parts.length);
+  const ctl = new THREE.OrbitControls(cam, renderer.domElement);
+  if (old) { cam.position.copy(old.p); ctl.target.copy(old.t); } else { ctl.target.copy(ctr); cam.position.set(ctr.x + 48, ctr.y + 38, ctr.z + 58); }
+  ctl.enableDamping = true; ctl.maxPolarAngle = Math.PI * .49; ctl.minDistance = 4; ctl.maxDistance = 220;
+  ctl.autoRotate = B3.spin !== false; ctl.autoRotateSpeed = .5;
+  ctl.addEventListener("start", () => { if (ctl.autoRotate) { ctl.autoRotate = false; B3.spin = false; $("#spinBtn").classList.remove("on"); } });
+  $("#spinBtn").classList.toggle("on", ctl.autoRotate);
+  ctl.update();
+  Object.assign(B3, { scene, cam, ctl, meshes, THREE, beam: null });
+  applyRoofs(); baseFocus(selected);
+  // name of the piece under the mouse
+  const ray = new THREE.Raycaster(), mv = new THREE.Vector2(), tip = $("#baseTip"); let lastMove = 0;
+  renderer.domElement.addEventListener("pointermove", e => {
+    const now = performance.now(); if (now - lastMove < 60) return; lastMove = now;
+    const rc = renderer.domElement.getBoundingClientRect(); mv.set((e.clientX - rc.left) / rc.width * 2 - 1, -(e.clientY - rc.top) / rc.height * 2 + 1);
+    ray.setFromCamera(mv, cam); const hit = ray.intersectObjects(meshes.filter(x => x.visible))[0];
+    if (hit && e.buttons === 0) { tip.hidden = false; tip.textContent = prettyPart(hit.object.userData.name); tip.style.left = (e.clientX - rc.left) + "px"; tip.style.top = (e.clientY - rc.top) + "px"; }
+    else tip.hidden = true;
+  });
+  renderer.domElement.addEventListener("pointerleave", () => tip.hidden = true);
+  const resize = () => { if (B3.r !== renderer) return; const w = box.clientWidth, h = box.clientHeight; if (!w || !h) return; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); };
+  window.addEventListener("resize", resize);
+  const tick = t => { if (B3.r !== renderer) return;
+    t = t || 0; sky.update(t, cam, ctl.target, 0);
+    const dark = 1 - Math.min(1, sky.light);
+    fireLights.forEach((l, i) => l.intensity = (.4 + dark * 2.2) * (.85 + .15 * Math.sin(t / 90 + i * 7)));
+    if (B3.beam) { const a = (t - B3.beam.t0) / 1000; B3.beam.obj.material.opacity = .35 + .2 * Math.sin(a * 4); B3.beam.obj.scale.y = Math.min(1, a * 2 + .05); }
+    if (t > chipT) { chipT = t + 5000; paint(); }
+    ctl.update(); renderer.render(scene, cam); B3.raf = requestAnimationFrame(tick); };
+  tick();
+}
+function applyRoofs() { if (!B3.meshes) return; for (const m of B3.meshes) if (m.userData.roof) m.visible = !B3.noRoof; $("#roofBtn").classList.toggle("on", !!B3.noRoof); $("#roofBtn").textContent = B3.noRoof ? "Show roofs" : "Hide roofs"; }
+// a beam of light on the chest that's open in the chest view
+function baseFocus(sign) {
+  const { THREE, scene } = B3; if (!THREE || !scene || !B3.r) return;
+  if (B3.beam) { scene.remove(B3.beam.obj); scene.remove(B3.beam.label); B3.beam = null; }
+  const data = LAST_RAW && LAST_RAW.build, ch = sign && LAST_RAW && (LAST_RAW.chests || []).find(c => c.sign === sign);
+  if (!data || !ch || !ch.pos) return;
+  const [x, z] = String(ch.pos).split(",").map(Number); if (!isFinite(x)) return;
+  const bx = x - data.x0, bz = -(z - data.z0);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.35, .55, 40, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xf2a93b, transparent: true, opacity: .5, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false }));
+  beam.position.set(bx, 18, bz); scene.add(beam);
+  const c = document.createElement("canvas"); c.width = 512; c.height = 128; const g = c.getContext("2d");
+  g.font = '800 60px "Alegreya Sans SC", sans-serif'; g.textAlign = "center"; g.lineWidth = 10; g.strokeStyle = "rgba(0,0,0,.85)"; g.fillStyle = "#ffe2b0"; g.strokeText(sign, 256, 84); g.fillText(sign, 256, 84);
+  const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false, fog: false })); label.scale.set(8, 2, 1); label.position.set(bx, 6, bz); label.renderOrder = 5; scene.add(label);
+  B3.beam = { obj: beam, label, t0: performance.now() };
+}
+$("#baseBtn").addEventListener("click", () => openBase(!B3.open));
+$("#roofBtn").addEventListener("click", () => { B3.noRoof = !B3.noRoof; applyRoofs(); });
+$("#spinBtn").addEventListener("click", () => { if (!B3.ctl) return; B3.ctl.autoRotate = !B3.ctl.autoRotate; B3.spin = B3.ctl.autoRotate; $("#spinBtn").classList.toggle("on", B3.ctl.autoRotate); });
+
+
+// ---------- stock over time (hourly totals the server keeps for 7 days) ----------
+const HCOL = ["#3987e5", "#d95926", "#199e70", "#c98500"];   // fixed order, validated for the dark panel
+let HSEL = null; try { HSEL = JSON.parse(localStorage.getItem("histSel") || "null"); } catch (e) {}
+const saveHSel = () => { try { localStorage.setItem("histSel", JSON.stringify(HSEL)); } catch (e) {} };
+function histData() {
+  const h = LAST_RAW && LAST_RAW.hist; if (!h || !h.t || h.t.length < 1) return null;
+  const n = h.t.length, items = {}, t = h.t.map(x => x * 1000);
+  for (const [k, v] of Object.entries(h.items || {})) {
+    const a = []; if (Array.isArray(v)) a.push(...v); else for (const part of String(v).split(",")) { const [val, run] = part.split("x").map(Number); for (let i = 0; i < run; i++) a.push(val); }
+    while (a.length < n) a.unshift(0); items[k] = a.slice(-n);
+  }
+  if (LIVE) {        // the live count is the newest point
+    const tot = {}; for (const L of Object.values(LIVE)) for (const [c, q] of Object.entries(L.items)) tot[c] = (tot[c] || 0) + q;
+    const at = UPDATED ? +UPDATED : Date.now();
+    if (at - t[n - 1] > 60000) { t.push(at); for (const k of new Set([...Object.keys(items), ...Object.keys(tot)])) { (items[k] = items[k] || new Array(n).fill(0)).push(tot[k] || 0); } }
+  }
+  return { t, items };
+}
+function histMovers(d) {
+  const last = d.t.length - 1;
+  return Object.entries(d.items).map(([c, a]) => ({ c, d: a[last] - a[0], now: a[last] })).filter(x => x.d !== 0).sort((p, q) => Math.abs(q.d) - Math.abs(p.d));
+}
+const niceMax = v => { if (v <= 0) return 10; const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p; };
+function drawHist() {
+  const box = $("#hchart"), d = histData();
+  if (!d || d.t.length < 2) {
+    box.innerHTML = `<p class="empty">${LAST_RAW ? "History starts once the server runs Wall Live 1.6. It saves one point every hour, so check back in a few hours." : "Waiting for the server…"}</p>`;
+    $("#hsel").innerHTML = ""; $("#hmovers").innerHTML = ""; $("#htable").innerHTML = ""; return;
+  }
+  const movers = histMovers(d);
+  if (!HSEL || !HSEL.length) HSEL = movers.slice(0, 3).map(x => x.c);
+  HSEL = HSEL.filter(c => d.items[c]).slice(0, 4);
+  $("#hlist").innerHTML = Object.keys(d.items).map(c => `<option value="${esc(nameOf(c))}">`).join("");
+  $("#hsel").innerHTML = HSEL.map((c, i) => `<span class="hchip"><i style="background:${HCOL[i]}"></i>${esc(nameOf(c))}<button type="button" data-hrm="${esc(c)}" aria-label="Remove ${esc(nameOf(c))}">×</button></span>`).join("");
+  $("#hq").disabled = HSEL.length >= 4; $("#hq").placeholder = HSEL.length >= 4 ? "Up to 4 at once" : "Add an item…";
+  $("#hmovers").innerHTML = movers.length ? `Biggest changes this week:` + movers.slice(0, 6).map(x => `<button type="button" data-hadd="${esc(x.c)}">${esc(nameOf(x.c))} <span class="${x.d > 0 ? "up" : "down"}">${x.d > 0 ? "+" : "−"}${fmt(Math.abs(x.d))}</span></button>`).join("") : "Nothing changed this week.";
+  // chart
+  const W = Math.max(300, box.clientWidth || 700), H = 280, ml = 50, mr = Math.min(150, W * .24), mt = 14, mb = 30, pw = W - ml - mr, ph = H - mt - mb;
+  const t0 = d.t[0], t1 = d.t[d.t.length - 1], X = t => ml + (t - t0) / Math.max(1, t1 - t0) * pw;
+  const top = niceMax(Math.max(1, ...HSEL.flatMap(c => d.items[c]))), Y = v => mt + ph - v / top * ph;
+  let g = "";
+  for (let k = 0; k <= 4; k++) { const v = top * k / 4, y = Y(v); g += `<line x1="${ml}" x2="${ml + pw}" y1="${y}" y2="${y}" stroke="#2c3530" stroke-width="1"/><text x="${ml - 8}" y="${y + 4}" text-anchor="end" fill="#9aa59e" font-size="12">${fmt(Math.round(v))}</text>`; }
+  const day = new Date(t0); day.setHours(24, 0, 0, 0);
+  for (let t = +day; t < t1; t += 86400000) { const x = X(t); g += `<line x1="${x}" x2="${x}" y1="${mt}" y2="${mt + ph}" stroke="#2c3530" stroke-width="1" stroke-dasharray="2 4"/>`;
+    if (x < ml + pw - 20) g += `<text x="${x + 4}" y="${H - 10}" fill="#9aa59e" font-size="12">${new Date(t).toLocaleDateString([], { weekday: "short", day: "numeric" })}</text>`; }
+  const lines = HSEL.map((c, i) => `<polyline fill="none" stroke="${HCOL[i]}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${d.items[c].map((v, k) => X(d.t[k]).toFixed(1) + "," + Y(v).toFixed(1)).join(" ")}"/>`).join("");
+  // direct labels at the right end, nudged apart so they never overlap
+  const ends = HSEL.map((c, i) => ({ c, i, y: Y(d.items[c][d.t.length - 1]), v: d.items[c][d.t.length - 1] })).sort((a, b) => a.y - b.y);
+  for (let k = 1; k < ends.length; k++) if (ends[k].y - ends[k-1].y < 17) ends[k].y = ends[k-1].y + 17;
+  const labels = ends.map(e => `<circle cx="${ml + pw}" cy="${Y(e.v)}" r="4" fill="${HCOL[e.i]}" stroke="#1b211e" stroke-width="2"/><text x="${ml + pw + 9}" y="${e.y + 4}" fill="#ece8df" font-size="13" font-weight="700">${esc(nameOf(e.c)).slice(0, 18)} <tspan fill="#9aa59e" font-weight="400">${fmt(e.v)}</tspan></text>`).join("");
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Stock of ${esc(HSEL.map(nameOf).join(", "))} over the last ${Math.round((t1 - t0) / 86400000) || 1} days">${g}${lines}${labels}
+    <line id="hx" x1="0" x2="0" y1="${mt}" y2="${mt + ph}" stroke="#ece8df" stroke-opacity=".5" stroke-width="1" visibility="hidden"/><g id="hdots"></g>
+    <rect x="${ml}" y="${mt}" width="${pw}" height="${ph}" fill="transparent" id="hhit"/></svg><div class="htip" id="htip" hidden></div>`;
+  const svg = box.querySelector("svg"), tip = $("#htip"), hx = $("#hx"), dots = $("#hdots");
+  const move = e => {
+    const r = svg.getBoundingClientRect(), sx = (e.clientX - r.left) / r.width * W;
+    const tt = t0 + (sx - ml) / pw * (t1 - t0); let k = 0, best = Infinity; d.t.forEach((t, j) => { const dd = Math.abs(t - tt); if (dd < best) { best = dd; k = j; } });
+    const x = X(d.t[k]); hx.setAttribute("x1", x); hx.setAttribute("x2", x); hx.setAttribute("visibility", "visible");
+    dots.innerHTML = HSEL.map((c, i) => `<circle cx="${x}" cy="${Y(d.items[c][k])}" r="4.5" fill="${HCOL[i]}" stroke="#1b211e" stroke-width="2"/>`).join("");
+    const when = new Date(d.t[k]); tip.hidden = false;
+    tip.innerHTML = `<b>${k === d.t.length - 1 && LIVE ? "Now" : when.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) + " · " + when.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</b>` +
+      HSEL.map((c, i) => `<div><span><i style="background:${HCOL[i]}"></i>${esc(nameOf(c))}</span><strong>${fmt(d.items[c][k])}</strong></div>`).join("");
+    tip.style.left = Math.min(r.width - 90, Math.max(90, x / W * r.width)) + "px"; tip.style.top = "6px";
+  };
+  const hit = $("#hhit");
+  hit.addEventListener("pointermove", move); hit.addEventListener("pointerdown", move);
+  hit.addEventListener("pointerleave", () => { tip.hidden = true; hx.setAttribute("visibility", "hidden"); dots.innerHTML = ""; });
+  // table view
+  const last = d.t.length - 1, ago = h => { const target = d.t[last] - h * 3600000; let k = 0; d.t.forEach((t, j) => { if (t <= target) k = j; }); return k; };
+  const k24 = ago(24);
+  $("#htable").innerHTML = `<table><thead><tr><th>Item</th><th>Now</th><th>24 h ago</th><th>Start of week</th><th>Change</th></tr></thead><tbody>${
+    [...new Set([...HSEL, ...movers.slice(0, 12).map(x => x.c)])].map(c => { const a = d.items[c], ch = a[last] - a[0];
+      return `<tr><td>${esc(nameOf(c))}</td><td>${fmt(a[last])}</td><td>${fmt(a[k24])}</td><td>${fmt(a[0])}</td><td>${ch > 0 ? "+" : ch < 0 ? "−" : ""}${fmt(Math.abs(ch))}</td></tr>`; }).join("")}</tbody></table>`;
+}
+document.addEventListener("click", e => {
+  const rm = e.target.closest("[data-hrm]"), add = e.target.closest("[data-hadd]");
+  if (rm) { HSEL = HSEL.filter(c => c !== rm.dataset.hrm); if (!HSEL.length) HSEL = []; saveHSel(); drawHist(); }
+  if (add) { const c = add.dataset.hadd; HSEL = HSEL.filter(x => x !== c); HSEL.push(c); if (HSEL.length > 4) HSEL.shift(); saveHSel(); drawHist(); }
+});
+$("#hq").addEventListener("change", e => {
+  const d = histData(); if (!d) return; const v = e.target.value.trim().toLowerCase();
+  const c = Object.keys(d.items).find(k => nameOf(k).toLowerCase() === v) || Object.keys(d.items).find(k => nameOf(k).toLowerCase().includes(v));
+  if (c && !HSEL.includes(c) && HSEL.length < 4) { HSEL.push(c); saveHSel(); } e.target.value = ""; drawHist();
+});
+window.addEventListener("resize", () => { clearTimeout(drawHist.t); drawHist.t = setTimeout(drawHist, 200); });
+
+
+// ---------- pop-up when something happens while the page is open ----------
+function toast(e) {
+  let host = $("#toasts"); if (!host) { host = document.createElement("div"); host.id = "toasts"; host.setAttribute("aria-live", "polite"); document.body.appendChild(host); }
+  const k = EVK[e.k] || ["•", "#9aa59e", ""], el = document.createElement("div"); el.className = "toast";
+  el.innerHTML = `<span class="ico" style="background:${k[1]}">${k[0]}</span><span>${esc(e.m)}</span>`;
+  el.addEventListener("click", () => { $("#feedSec").scrollIntoView({ behavior: "smooth" }); el.remove(); });
+  host.appendChild(el); setTimeout(() => el.classList.add("out"), 9000); setTimeout(() => el.remove(), 9600);
+  while (host.children.length > 4) host.firstChild.remove();
 }
 
 // ---- camera flight to a portal ----
@@ -1003,14 +1474,16 @@ function showChest(sign) {
   const v = $("#chestView"), L = LIVE && LIVE[sign], note = D.notes[sign];
   const items = L ? Object.entries(L.items).sort((a,b)=>b[1]-a[1]) : null;
   const pinned = PINS.includes(sign);
-  v.innerHTML = `<div class="chest"><h2>${signHtml(sign)} ${posHtml(sign)}<button class="star ${pinned ? "on" : ""}" type="button" id="pinChest">${pinned ? "★ Pinned" : "☆ Pin"}</button><button class="close" type="button" id="closeChest">Close</button></h2>
+  v.innerHTML = `<div class="chest"><h2>${signHtml(sign)} ${posHtml(sign)}<button class="star ${pinned ? "on" : ""}" type="button" id="pinChest">${pinned ? "★ Pinned" : "☆ Pin"}</button>${LAST_RAW && LAST_RAW.build ? `<button class="star" type="button" id="baseChest">Show in 3D base</button>` : ""}<button class="close" type="button" id="closeChest">Close</button></h2>
     ${note ? `<p class="note">For: ${esc(note)}</p>` : ""}${meterHtml(sign)}
     ${items === null ? `<p class="empty">No live count for this chest yet.</p>`
       : items.length ? `<ul>${items.map(([c,n]) => { const p = D.plan[c], stray = p && p !== sign && sign !== "SPARE";
           return `<li class="${stray ? "stray" : ""}" title="${stray ? "Belongs in " + esc(p) : ""}"><span>${nm(c, sign)}</span><span>${fmt(n)}</span></li>`; }).join("")}</ul>`
       : `<p class="empty">Empty right now.</p>`}</div>`;
   v.hidden = false; highlight(new Set([sign]), sign);
-  $("#closeChest").onclick = () => { selected = null; v.hidden = true; search($("#q").value); };
+  $("#closeChest").onclick = () => { selected = null; v.hidden = true; search($("#q").value); baseFocus(null); };
+  if ($("#baseChest")) $("#baseChest").onclick = async () => { $("#baseSec").scrollIntoView({ behavior: "smooth", block: "start" }); if (!B3.open) await openBase(true); baseFocus(sign); };
+  baseFocus(sign);
   $("#pinChest").onclick = () => { PINS = PINS.includes(sign) ? PINS.filter(x => x !== sign) : [...PINS, sign]; store.set("kaaphalla-pins", PINS); drawPins(); showChest(sign); };
 }
 function search(q) {
@@ -1047,7 +1520,7 @@ function search(q) {
   if (!selected) highlight(hit);
 }
 function rerender() {
-  drawStats(); drawServer(); drawWall(); drawFeed(); drawCats(); drawLists(); drawCraft(); drawPins(); tvTick(); mapRefresh();
+  drawStats(); drawServer(); drawWall(); drawFeed(); drawBaseSec(); drawHist(); drawCats(); drawLists(); drawCraft(); drawPins(); tvTick(); mapRefresh();
   if (selected) showChest(selected); search($("#q").value);
   if (LIVE && !chgLoaded) { chgLoaded = true; drawChanges(); }
 }
@@ -1099,7 +1572,8 @@ $("#ex").addEventListener("click", e => { if (e.target.tagName === "BUTTON") { $
 drawRecent();
 rerender();
 load();
-setInterval(load, 120000);
+setInterval(() => { if (!document.hidden) load(); }, 30000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
 // "What changed" refreshes itself every 6 minutes (GitHub limits how often a browser may ask)
 setInterval(() => { if (chgLoaded && !document.hidden) drawChanges(); }, 360000);
 setInterval(showStatus, 30000);
