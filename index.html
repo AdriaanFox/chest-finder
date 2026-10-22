@@ -176,6 +176,14 @@ body.tv .tvbar{display:flex}
 .prow span{color:var(--muted);font-size:13.5px;white-space:nowrap}
 .mlegend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:13.5px;color:var(--muted)}
 .mlegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.feed{display:flex;flex-direction:column}
+.ev{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 2px;border-top:1px dotted var(--line)}
+.ev:first-child{border-top:0}
+.ev .ico{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:800 14px var(--display);color:#111}
+.ev .when{color:var(--muted);font-size:13.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ev.new{animation:evin .8s ease-out}
+@keyframes evin{from{background:rgba(242,169,59,.18)}to{background:transparent}}
+.ev .go{background:none;border:0;color:var(--ember);font:inherit;font-size:13.5px;cursor:pointer;padding:0;margin-left:6px}
 @media (max-width:640px){
   body{font-size:18px}
   h1{font-size:40px}
@@ -201,7 +209,7 @@ body.tv .tvbar{display:flex}
     </div>
   </header>
 
-  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#catSec">Totals</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
+  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#feedSec">Feed</a><a href="#catSec">Totals</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
 
   <div class="stats" id="stats"></div>
 
@@ -248,6 +256,14 @@ body.tv .tvbar{display:flex}
         <input id="pq" type="search" placeholder="Find a portal" autocomplete="off">
         <div class="plist" id="plist"><p class="empty">Waiting for the server…</p></div>
       </div>
+    </div>
+  </section>
+
+  <section id="feedSec">
+    <p class="label">WHAT'S HAPPENING</p>
+    <div class="panel">
+      <div class="seg" id="feedSeg"><button class="tab on" data-f="all" type="button">All</button><button class="tab" data-f="death" type="button">Deaths</button><button class="tab" data-f="raid" type="button">Raids</button><button class="tab" data-f="boss" type="button">Bosses</button><button class="tab" data-f="join" type="button">Joins</button></div>
+      <div class="feed" id="feed"><p class="empty">Waiting for the server…</p></div>
     </div>
   </section>
 
@@ -407,6 +423,17 @@ function tick(el, to) {
   const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(Math.round(from + (to - from) * e)); if (k < 1) requestAnimationFrame(step); };
   requestAnimationFrame(step);
 }
+// in-game time: the day fraction runs 0..1 from midnight
+function clock(f) {
+  const m = Math.floor(f * 24 * 60), h = Math.floor(m / 60) % 24, mm = String(m % 60).padStart(2, "0");
+  const part = h < 5 ? "night" : h < 12 ? "morning" : h < 17 ? "afternoon" : h < 21 ? "evening" : "night";
+  return `${String(h).padStart(2, "0")}:${mm} · ${part}`;
+}
+const WEATHER = { "Clear":"Clear skies", "Twilight_Clear":"Clear", "Misty":"Misty", "Rain":"Rain", "LightRain":"Light rain", "ThunderStorm":"Thunderstorm",
+  "Snow":"Snow", "SnowStorm":"Snowstorm", "DeepForest Mist":"Forest mist", "SwampRain":"Swamp rain", "Heath clear":"Clear", "Darklands_dark":"Mistlands gloom",
+  "Mistlands_clear":"Clear (Mistlands)", "Mistlands_rain":"Rain (Mistlands)", "Mistlands_thunder":"Thunder (Mistlands)", "Ashlands_ashrain":"Ash rain", "Ashlands_storm":"Ash storm",
+  "Ashlands_misty":"Ash mist", "Ashlands_CinderRain":"Cinder rain", "Ashlands_SeaStorm":"Sea storm", "Ashlands_meteorshower":"Meteor shower" };
+const weatherName = w => WEATHER[w] || w.replace(/_/g, " ");
 function drawServer() {
   const el = $("#srv");
   if (!SERVER) { el.innerHTML = ""; return; }
@@ -414,6 +441,8 @@ function drawServer() {
   const up = SERVER.uptime >= 0 ? (SERVER.uptime >= 3600 ? Math.floor(SERVER.uptime/3600) + "h " + Math.floor(SERVER.uptime%3600/60) + "m" : Math.floor(SERVER.uptime/60) + " min") : null;
   el.innerHTML = (p.length ? p.map(n => `<span class="chip p">${esc(n)}</span>`).join("") : `<span class="chip">Nobody online</span>`) +
     (SERVER.day != null ? `<span class="chip">Day ${fmt(SERVER.day)}</span>` : "") +
+    (SERVER.time != null ? `<span class="chip">${clock(SERVER.time)}</span>` : "") +
+    (SERVER.weather ? `<span class="chip">${esc(weatherName(SERVER.weather))}</span>` : "") +
     (up ? `<span class="chip">Up ${up}</span>` : "") +
     (SERVER.saved ? `<span class="chip">Saved ${ago(new Date(SERVER.saved))}</span>` : "");
 }
@@ -440,6 +469,21 @@ function drawLists() {
   const st = strays();
   $("#strayList").innerHTML = `<h3>Out of place</h3>` + (st.length ? st.slice(0, 30).map(x => `<div class="row"><b>${esc(nameOf(x.code))}</b><span class="pos">${fmt(x.n)} in</span>${signHtml(x.sign)}<span class="pos">→ belongs in</span>${signHtml(x.plan)}</div>`).join("") + (st.length > 30 ? `<p class="note">…and ${st.length - 30} more.</p>` : "") : `<p class="empty">Everything is where it belongs.</p>`);
 }
+let feedFilter = "all", seenEvents = null;
+const EVK = { death:["✝","#ff7a6b","Death"], raid:["!","#f2c14e","Raid"], raidend:["✓","#9aa59e","Raid over"], boss:["♛","#d9a6ff","Boss"], join:["+","#6fd38f","Joined"], leave:["–","#9aa59e","Left"] };
+function drawFeed() {
+  const el = $("#feed"), ev = (LAST_RAW && LAST_RAW.events) || [];
+  if (!LAST_RAW) return;
+  const list = ev.slice().reverse().filter(e => feedFilter === "all" || e.k === feedFilter || (feedFilter === "raid" && e.k === "raidend") || (feedFilter === "join" && e.k === "leave"));
+  const fresh = new Set(seenEvents ? ev.filter(e => !seenEvents.has(e.t + e.m)).map(e => e.t + e.m) : []);
+  seenEvents = new Set(ev.map(e => e.t + e.m));
+  el.innerHTML = list.length ? list.slice(0, 40).map(e => { const k = EVK[e.k] || ["•","#9aa59e",""];
+    return `<div class="ev ${fresh.has(e.t + e.m) ? "new" : ""}"><span class="ico" style="background:${k[1]}">${k[0]}</span>
+      <span>${esc(e.m)}${e.x != null ? `<button class="go" type="button" data-gx="${e.x}" data-gz="${e.z}">show on map</button>` : ""}</span>
+      <span class="when" title="${esc(new Date(e.t).toLocaleString())}">${ago(new Date(e.t))}</span></div>`; }).join("")
+    : `<p class="empty">${ev.length ? "Nothing of that kind yet." : "Nothing yet. Deaths, raids, bosses and who joins will show up here as they happen."}</p>`;
+}
+
 function drawCats() {
   const el = $("#cats");
   if (!LIVE) { el.innerHTML = `<p class="empty">Waiting for the live count…</p>`; return; }
@@ -926,7 +970,7 @@ function search(q) {
   if (!selected) highlight(hit);
 }
 function rerender() {
-  drawStats(); drawServer(); drawWall(); drawCats(); drawLists(); drawCraft(); drawPins(); tvTick(); mapRefresh();
+  drawStats(); drawServer(); drawWall(); drawFeed(); drawCats(); drawLists(); drawCraft(); drawPins(); tvTick(); mapRefresh();
   if (selected) showChest(selected); search($("#q").value);
   if (LIVE && !chgLoaded) { chgLoaded = true; drawChanges(); }
 }
@@ -940,6 +984,11 @@ document.addEventListener("click", e => {
   const t = e.target.closest(".tab[data-mode]"); if (t) { mode = t.dataset.mode; document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b === t)); drawWall(); }
 });
 wall.addEventListener("keydown", e => { const c = e.target.closest(".cell"); if ((e.key === "Enter" || e.key === " ") && c) { e.preventDefault(); showChest(c.dataset.sign); } });
+$("#feedSeg").addEventListener("click", e => { const b = e.target.closest(".tab"); if (!b) return; e.stopPropagation();
+  feedFilter = b.dataset.f; $("#feedSeg").querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b)); drawFeed(); });
+$("#feed").addEventListener("click", e => { const b = e.target.closest("[data-gx]"); if (!b) return;
+  if (M.view3d) { set3D(false); document.querySelector('[data-mc="3d"]').classList.remove("on"); }
+  M.hl = null; fitView("pt", +b.dataset.gx, +b.dataset.gz, 10); drawMap(); document.getElementById("mapSec").scrollIntoView({ behavior: "smooth", block: "start" }); });
 $("#chgSeg").addEventListener("click", e => { const b = e.target.closest(".tab"); if (!b) return; e.stopPropagation();
   chgHours = +b.dataset.h; $("#chgSeg").querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b)); drawChanges(); });
 $("#craftItem").addEventListener("input", suggest);
