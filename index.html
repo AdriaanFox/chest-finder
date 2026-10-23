@@ -23,9 +23,13 @@ body{margin:0;color:var(--fg);font:17px/1.45 var(--body);
 .wrap{max-width:1100px;margin:0 auto;padding-block:30px 56px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   display:flex;flex-direction:column;gap:26px}
-header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 16px}
+.hactions{display:flex;gap:8px;flex-wrap:wrap}.hactions .hornbtn{margin:0}
+.statusbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:14px 0 6px;padding:8px 10px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,var(--panel),var(--bg2))}
+.statusbar .status{border:0;background:none;padding:2px 6px}
+.statusbar .srv{margin:0}
 .eyebrow{font:800 13px var(--display);letter-spacing:.28em;color:var(--ember);margin:0 0 6px}
-h1{font:900 clamp(34px,7vw,58px)/.95 var(--display);letter-spacing:.02em;margin:0;text-wrap:balance;
+h1{font:900 clamp(34px,6vw,52px)/.95 var(--display);letter-spacing:.02em;margin:0;text-wrap:balance;
   text-shadow:0 2px 0 #000,0 0 28px rgba(242,169,59,.25)}
 .status{display:inline-flex;align-items:center;gap:9px;padding:7px 13px;border:1px solid var(--line);border-radius:999px;background:var(--bg2);font-size:15px;color:var(--muted)}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
@@ -79,7 +83,7 @@ h1{font:900 clamp(34px,7vw,58px)/.95 var(--display);letter-spacing:.02em;margin:
 .wall{display:grid;grid-template-columns:26px repeat(24,minmax(56px,1fr));gap:4px;min-width:1420px}
 .rl{font:800 12px var(--display);color:#cdbfa9;display:flex;align-items:center;justify-content:center}
 .cl{font:500 11px var(--body);color:#a8987f;text-align:center}
-.cell{position:relative;font:800 10.5px/1.1 var(--display);letter-spacing:.02em;background:linear-gradient(180deg,#45372a,#33281e);border:1px solid #5b4934;border-radius:4px;min-height:54px;padding:5px 3px 11px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;overflow:hidden;overflow-wrap:anywhere;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 2px 0 rgba(0,0,0,.4)}
+.cell{position:relative;font:800 10.5px/1.1 var(--display);letter-spacing:0;background:linear-gradient(180deg,#45372a,#33281e);border:1px solid #5b4934;border-radius:4px;min-height:54px;padding:5px 3px 11px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;overflow:hidden;overflow-wrap:break-word;word-break:normal;hyphens:auto;-webkit-hyphens:auto;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 2px 0 rgba(0,0,0,.4)}
 .cell .fill{position:absolute;left:0;right:0;bottom:0;height:5px;background:#1a140e}
 .cell .fill i{display:block;height:100%}
 .cell .n{position:absolute;right:3px;top:2px;font:500 9px var(--body);color:#bba98c}
@@ -96,7 +100,7 @@ h1{font:900 clamp(34px,7vw,58px)/.95 var(--display);letter-spacing:.02em;margin:
 .list .row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:7px 0;border-top:1px dotted var(--line)}
 .list .row:first-of-type{border-top:0}
 .foot{color:var(--muted);font-size:14px;text-align:center}
-.newsbtn{position:relative;margin-left:6px}
+.newsbtn{position:relative}
 .newshead{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .newslist{display:flex;flex-direction:column;gap:12px}
 .note-card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:14px 18px}
@@ -104,6 +108,7 @@ h1{font:900 clamp(34px,7vw,58px)/.95 var(--display);letter-spacing:.02em;margin:
 .note-card h3{margin:0 0 6px;font:800 18px var(--display);display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .note-card h3 small{font:600 13px var(--body);color:var(--muted)}
 .note-card h3 .newtag{font:800 11px var(--body);letter-spacing:.08em;background:var(--ember);color:#1b130b;border-radius:999px;padding:2px 8px}
+.note-card.plan{border-style:dashed;background:transparent}.note-card.plan li b{color:var(--fg)}
 .note-card ul{margin:0;padding-left:20px}.note-card li{margin:3px 0}
 .note-card li b{color:var(--ember)}
 nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;display:flex;gap:6px;overflow-x:auto;padding:10px 0;margin:-6px 0 4px;background:linear-gradient(180deg,var(--bg) 78%,transparent);scrollbar-width:none}
@@ -324,17 +329,19 @@ body.tv .tvbar{display:flex}
 <body>
 <div class="wrap">
   <header>
-    <div>
+    <div class="brand">
       <p class="eyebrow">NUWE WERELD · LIVE FROM THE SERVER</p>
       <h1>Kaaphalla Hub</h1>
     </div>
-    <div>
-      <span class="status" id="status"><span class="dot"></span><span id="statusText">Loading the latest chest count…</span></span>
-      <div class="srv" id="srv"></div>
-      <button class="hornbtn" id="hornBtn" type="button"></button>
+    <div class="hactions">
       <button class="hornbtn newsbtn" id="newsBtn" type="button">✨ What's new <span class="tdot" id="newsDot" hidden></span></button>
+      <button class="hornbtn" id="hornBtn" type="button"></button>
     </div>
   </header>
+  <div class="statusbar">
+    <span class="status" id="status"><span class="dot"></span><span id="statusText">Loading the latest chest count…</span></span>
+    <div class="srv" id="srv"></div>
+  </div>
   <div class="raidbar" id="raidBar" hidden></div>
 
   <nav class="tabs" id="tabs" role="tablist" aria-label="Areas">
@@ -360,13 +367,6 @@ body.tv .tvbar{display:flex}
   <div id="results" data-tab="find" aria-live="polite"></div>
 
 
-  <section id="todoSec" data-tab="live">
-    <p class="label">TO-DO · SHARED BY EVERYONE ON THE SERVER</p>
-    <div class="panel">
-      <div class="todohow"><span>Add from game chat:</span><code>todo kill Fader</code><span>Finish:</span><code>done 3</code><span>See the list in game:</span><code>todo</code></div>
-      <div id="todos"><p class="empty">Waiting for the server…</p></div>
-    </div>
-  </section>
 
   <section id="wallSec" data-tab="find">
     <div class="sec-h">
@@ -447,6 +447,14 @@ body.tv .tvbar{display:flex}
     </div>
   </section>
 
+  <section id="todoSec" data-tab="live">
+    <p class="label">TO-DO · SHARED BY EVERYONE ON THE SERVER</p>
+    <div class="panel">
+      <div class="todohow"><span>Add from game chat:</span><code>todo kill Fader</code><span>Finish:</span><code>done 3</code><span>See the list in game:</span><code>todo</code></div>
+      <div id="todos"><p class="empty">Waiting for the server…</p></div>
+    </div>
+  </section>
+
 
   <section id="wxSec" data-tab="live">
     <p class="label">WEATHER · WORKED OUT THE WAY THE GAME DOES IT</p>
@@ -457,6 +465,11 @@ body.tv .tvbar{display:flex}
     <p class="label">TOTALS BY CATEGORY</p>
     <div class="panel"><div class="cats" id="cats"></div></div>
   </section>
+
+  <div class="lists" id="lists" data-tab="stock">
+    <div class="list" id="fullList"></div>
+    <div class="list" id="strayList"></div>
+  </div>
 
 
   <section id="histSec" data-tab="stock">
@@ -492,10 +505,6 @@ body.tv .tvbar{display:flex}
     </div>
   </section>
 
-  <div class="lists" id="lists" data-tab="find">
-    <div class="list" id="fullList"></div>
-    <div class="list" id="strayList"></div>
-  </div>
 
   <section id="newsSec" data-tab="news">
     <div class="newshead"><p class="label">RELEASE NOTES · WHAT'S NEW ON THE HUB</p><button class="tab" id="newsClose" type="button">← Back</button></div>
@@ -605,6 +614,9 @@ const strays = () => {
 
 // ---------- drawing ----------
 const wall = $("#wall");
+// long single words (TIMBERWOOD, BLOODGOLD) get a slightly smaller font so they fit the chest instead of being cut off
+function labelFit(t) { const L = Math.max(...String(t).split(/\s+/).map(w => w.length)); const pc = L >= 10 ? 72 : L === 9 ? 80 : L === 8 ? 88 : L === 7 ? 95 : 100;
+  return pc === 100 ? esc(t) : `<span style="font-size:${pc}%">${esc(t)}</span>`; }
 function drawWall() {
   let h = `<div></div>` + Array.from({length:24},(_,i)=>`<div class="cl">${i+1}</div>`).join("");
   for (let r = 1; r <= 4; r++) {
@@ -613,7 +625,7 @@ function drawWall() {
       const x = D.cells.find(k => k.r === r && k.c === c), f = fillOf(x.s), L = LIVE && LIVE[x.s];
       const tot = L ? Object.values(L.items).reduce((a,b)=>a+b,0) : null;
       const bg = mode === "heat" && f !== null ? `background:linear-gradient(180deg,color-mix(in srgb,${levelColor(f)} ${Math.round(20+f*55)}%,#33281e),#2a2119);` : "";
-      h += `<div class="cell" tabindex="0" role="button" data-sign="${esc(x.s)}" style="color:${D.groups[x.g].c};${bg}" title="Row ${r}, chest ${c}${f !== null ? " · " + Math.round(f*100) + "% full" : ""}">${esc(x.s)}${tot === 0 ? '<span class="n">empty</span>' : ""}${f !== null ? `<span class="fill"><i style="width:${(f*100).toFixed(0)}%;background:${levelColor(f)}"></i></span>` : ""}</div>`;
+      h += `<div class="cell" tabindex="0" role="button" data-sign="${esc(x.s)}" style="color:${D.groups[x.g].c};${bg}" title="Row ${r}, chest ${c}${f !== null ? " · " + Math.round(f*100) + "% full" : ""}">${labelFit(x.s)}${tot === 0 ? '<span class="n">empty</span>' : ""}${f !== null ? `<span class="fill"><i style="width:${(f*100).toFixed(0)}%;background:${levelColor(f)}"></i></span>` : ""}</div>`;
     }
   }
   wall.innerHTML = h; wall.classList.toggle("heat", mode === "heat");
@@ -887,6 +899,8 @@ function sizeCanvas() {
 }
 function fitView(what, x, z, zoom) {
   const d = sizeCanvas(), W = mapCv.width, H = mapCv.height, N = M.N || 1024;
+  if (W < 10 || H < 10) { M.pendingFit = [what, x, z, zoom]; return; }   // map tab not shown yet: do it when it opens
+  M.pendingFit = null;
   if (what === "fit") { M.s = Math.min(W, H) / N; M.ox = (W - N * M.s) / 2; M.oy = (H - N * M.s) / 2; return; }
   let bx = x, bz = z;
   if (what === "base") { const b = LAST_RAW && LAST_RAW.map && LAST_RAW.map.base; bx = b ? b.x : 335; bz = b ? b.z : -465; zoom = zoom || 6; }
@@ -1465,25 +1479,25 @@ function partLook(n) {
   if (/karve|longship|raft|ship|boat/.test(n)) return { c: 0x7a5a3a };
   return { c: 0x9b6b3f };
 }
-function partGeo(THREE, sh) {
-  const b = sh.b, s = sh.s || [];
-  const box = () => { const g = new THREE.BoxGeometry(Math.max(.06, b[3] - b[0]), Math.max(.06, b[4] - b[1]), Math.max(.06, b[5] - b[2]));
+function partGeo(THREE, sh, out) {
+  const b = sh.b, s = sh.s || []; out = out || {}; out.R = new THREE.Matrix4();
+  const box = () => { out.R = new THREE.Matrix4(); const g = new THREE.BoxGeometry(Math.max(.06, b[3] - b[0]), Math.max(.06, b[4] - b[1]), Math.max(.06, b[5] - b[2]));
     g.translate((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, -(b[2] + b[5]) / 2); return g; };
   // roofs (no snap points sent): a sloped slab across the box, low at the back (-z) and high at the front (+z)
   if (s.length < 9 && /roof/.test(sh.n) && !/wall_roof|top|corner|cap/.test(sh.n) && !ROOF_FLIP.has("all")) {
     const zl = ROOF_FLIP.has(sh.n) ? -b[2] : -b[5], zh = ROOF_FLIP.has(sh.n) ? -b[5] : -b[2], yl = b[1], yh = b[4];
     const len = Math.hypot(zh - zl, yh - yl), g = new THREE.BoxGeometry(Math.max(.06, b[3] - b[0]), .16, len);
-    g.rotateX(-Math.atan2(yh - yl, zh - zl));
+    g.rotateX(-Math.atan2(yh - yl, zh - zl)); out.R = new THREE.Matrix4().makeRotationX(-Math.atan2(yh - yl, zh - zl));
     g.translate((b[0] + b[3]) / 2, (yl + yh) / 2, (zl + zh) / 2); return g;
   }
   const pts = [];
   for (let i = 0; i + 2 < s.length; i += 3) { const p = new THREE.Vector3(s[i], s[i+1], -s[i+2]); if (!pts.some(q => q.distanceTo(p) < .05)) pts.push(p); }
   try {
-    if (pts.length === 2) {           // a beam or pole: a thin bar between its two ends
+    if (pts.length === 2) { out.R = new THREE.Matrix4();           // a beam or pole: a thin bar between its two ends
       const d = pts[0].distanceTo(pts[1]); if (d < .3) return box();
       const g = new THREE.BoxGeometry(.22, .22, d), m = new THREE.Matrix4();
       const dir = pts[1].clone().sub(pts[0]).normalize(), up = Math.abs(dir.y) > .95 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
-      m.lookAt(pts[0], pts[1], up); g.applyMatrix4(m); g.translate(...pts[0].clone().add(pts[1]).multiplyScalar(.5).toArray()); return g;
+      m.lookAt(pts[0], pts[1], up); g.applyMatrix4(m); out.R = m.clone(); g.translate(...pts[0].clone().add(pts[1]).multiplyScalar(.5).toArray()); return g;
     }
     if (pts.length >= 3) {            // a wall, floor or roof: a slab through its corners
       const p0 = pts[0]; let a = pts[1], best = 0;
@@ -1504,7 +1518,7 @@ function partGeo(THREE, sh) {
       const th = Math.min(.45, Math.max(.08, mx - mn));
       const shape = new THREE.Shape(hull.map(([x, y]) => new THREE.Vector2(x, y)));
       const g = new THREE.ExtrudeGeometry(shape, { depth: th, bevelEnabled: false }); g.translate(0, 0, -th / 2);
-      g.applyMatrix4(new THREE.Matrix4().makeBasis(u, v, n)); g.translate(p0.x, p0.y, p0.z); return g;
+      g.applyMatrix4(new THREE.Matrix4().makeBasis(u, v, n)); out.R = new THREE.Matrix4().makeBasis(u, v, n); g.translate(p0.x, p0.y, p0.z); return g;
     }
   } catch (e) {}
   return box();
@@ -1849,7 +1863,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-24-0030";
+const BUILD = "2026-10-24-0040";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
@@ -1950,62 +1964,124 @@ function integrityMaps() {
   return { hp, sup, est };
 }
 // The game works out support on the players' computers, so the server can't report it.
-// This redoes the game's rule on the website: pieces touching the ground get full support, and support
-// flows from piece to piece, losing a bit per step (more sideways than up/down) according to each material.
+// This redoes the game's own rule (WearNTear.UpdateSupport) on the website:
+// - a piece touching the ground gets its material's full support;
+// - otherwise it takes the best of what touching pieces give: S × (1 − loss × distance), where the loss is the
+//   piece's sideways loss, or (for pieces holding it from below) a mix of sideways and up/down loss by angle;
+// - two holders below on opposite sides can share the weight (their average counts).
+// Colour is the game's: full support = blue, then green → yellow → red as support drops to the minimum.
+function pieceBoxes() {
+  const d = LAST_RAW && LAST_RAW.build, THREE = B3.THREE; if (!d || !THREE) return null;
+  const P = d.parts, S = d.shapes, n = P.length, out = new Array(n), shapeBox = {};
+  for (let si = 0; si < S.length; si++) {
+    const sh = S[si]; if (!sh) continue; const o = {}; const g = partGeo(THREE, sh, o);
+    const inv = o.R.clone().invert(); g.applyMatrix4(inv); g.computeBoundingBox(); const bb = g.boundingBox; g.dispose();
+    const c = bb.getCenter(new THREE.Vector3()).applyMatrix4(o.R), h = bb.getSize(new THREE.Vector3()).multiplyScalar(.5);
+    const e = o.R.elements; shapeBox[si] = { c, h: [h.x, h.y, h.z], ax: [new THREE.Vector3(e[0], e[1], e[2]), new THREE.Vector3(e[4], e[5], e[6]), new THREE.Vector3(e[8], e[9], e[10])] };
+  }
+  const q = new THREE.Quaternion();
+  for (let i = 0; i < n; i++) {
+    const p = P[i], sb = shapeBox[p[0]]; if (!sb || NOT_BUILDING.test(S[p[0]].n)) continue;
+    if (p.length === 5) q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[4] * Math.PI / 180); else q.set(-p[4], -p[5], p[6], p[7]);
+    const c = sb.c.clone().applyQuaternion(q).add(new THREE.Vector3(p[1], p[2], -p[3]));
+    const ax = sb.ax.map(a => a.clone().applyQuaternion(q).normalize());
+    const ext = [0, 1, 2].map(k => Math.abs(ax[0].getComponent(k)) * sb.h[0] + Math.abs(ax[1].getComponent(k)) * sb.h[1] + Math.abs(ax[2].getComponent(k)) * sb.h[2]);
+    out[i] = { c, ax, h: sb.h, lo: [c.x - ext[0], c.y - ext[1], c.z - ext[2]], hi: [c.x + ext[0], c.y + ext[1], c.z + ext[2]] };
+  }
+  return out;
+}
+// do two oriented boxes touch (with a small gap allowed)?
+function obbTouch(A, B, m) {
+  const T = B.c.clone().sub(A.c), R = [], AR = [];
+  for (let i = 0; i < 3; i++) { R[i] = []; AR[i] = []; for (let j = 0; j < 3; j++) { R[i][j] = A.ax[i].dot(B.ax[j]); AR[i][j] = Math.abs(R[i][j]) + 1e-6; } }
+  const t = [T.dot(A.ax[0]), T.dot(A.ax[1]), T.dot(A.ax[2])], a = A.h.map(x => x + m), b = B.h.map(x => x + m);
+  for (let i = 0; i < 3; i++) if (Math.abs(t[i]) > a[i] + b[0] * AR[i][0] + b[1] * AR[i][1] + b[2] * AR[i][2]) return false;
+  for (let j = 0; j < 3; j++) if (Math.abs(t[0] * R[0][j] + t[1] * R[1][j] + t[2] * R[2][j]) > a[0] * AR[0][j] + a[1] * AR[1][j] + a[2] * AR[2][j] + b[j]) return false;
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+    const i1 = (i + 1) % 3, i2 = (i + 2) % 3, j1 = (j + 1) % 3, j2 = (j + 2) % 3;
+    const ra = a[i1] * AR[i2][j] + a[i2] * AR[i1][j], rb = b[j1] * AR[i][j2] + b[j2] * AR[i][j1];
+    if (Math.abs(t[i2] * R[i1][j] - t[i1] * R[i2][j]) > ra + rb) return false;
+  }
+  return true;
+}
+function closestOnBox(B, p) {   // the point of box B nearest to p
+  const d = p.clone().sub(B.c), r = B.c.clone();
+  for (let k = 0; k < 3; k++) r.addScaledVector(B.ax[k], Math.max(-B.h[k], Math.min(B.h[k], d.dot(B.ax[k]))));
+  return r;
+}
 function estimateSupport() {
-  const d = LAST_RAW && LAST_RAW.build; if (!d || !d.shapes.some(x => x.ms)) return null;
+  const d = LAST_RAW && LAST_RAW.build; if (!d || !B3.THREE || !d.shapes.some(x => x && x.ms)) return null;
   const sig = d.parts.length + ":" + JSON.stringify(d.parts[d.parts.length - 1]);
   if (B3.supEst && B3.supEst.sig === sig) return B3.supEst.map;
   const P = d.parts, S = d.shapes, n = P.length, gn = d.gn, gs = d.gs, G = d.ground, half = (gn - 1) / 2;
   const groundAt = (x, z) => { const fx = Math.max(0, Math.min(gn - 1.001, x / gs + half)), fz = Math.max(0, Math.min(gn - 1.001, z / gs + half)), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
     return (G[j * gn + i] * (1 - tx) + G[j * gn + i + 1] * tx) * (1 - tz) + (G[(j + 1) * gn + i] * (1 - tx) + G[(j + 1) * gn + i + 1] * tx) * tz; };
-  const box = new Array(n), cen = new Array(n);
-  for (let i = 0; i < n; i++) {
-    const p = P[i], sh = S[p[0]]; if (!sh || !sh.ms || NOT_BUILDING.test(sh.n)) continue;
-    const b = sh.b; let qx = 0, qy = 0, qz = 0, qw = 1;
-    if (p.length === 5) { const a = p[4] * Math.PI / 360; qy = Math.sin(a); qw = Math.cos(a); } else { qx = p[4]; qy = p[5]; qz = p[6]; qw = p[7]; }
-    const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
-    for (let k = 0; k < 8; k++) {
-      const vx = k & 1 ? b[3] : b[0], vy = k & 2 ? b[4] : b[1], vz = k & 4 ? b[5] : b[2];
-      // rotate by the quaternion (Valheim's own axes), then move to the piece's place
-      const tx = 2 * (qy * vz - qz * vy), ty = 2 * (qz * vx - qx * vz), tz = 2 * (qx * vy - qy * vx);
-      const r = [vx + qw * tx + (qy * tz - qz * ty) + p[1], vy + qw * ty + (qz * tx - qx * tz) + p[2], vz + qw * tz + (qx * ty - qy * tx) + p[3]];
-      for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], r[a]); hi[a] = Math.max(hi[a], r[a]); }
+  const box = pieceBoxes(); if (!box) return null;
+  const ms = i => S[P[i][0]].ms || [100, 10, .2, .125, 1];
+  // pieces near each other (2 m grid)
+  const cell = new Map(), key = (x, z) => x * 100003 + z, CS = 2;
+  for (let i = 0; i < n; i++) if (box[i]) { const B = box[i];
+    for (let x = Math.floor(B.lo[0] / CS); x <= Math.floor(B.hi[0] / CS); x++) for (let z = Math.floor(B.lo[2] / CS); z <= Math.floor(B.hi[2] / CS); z++) { const k = key(x, z); (cell.get(k) || cell.set(k, []).get(k)).push(i); } }
+  // who touches whom, and what each holder would give
+  const links = new Array(n), grounded = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (box[i]) {
+    const A = box[i], seen = new Set(), L = [];
+    // touching the ground? check the box's lowest corners against the terrain
+    for (let k = 0; k < 8 && !grounded[i]; k++) {
+      const v = A.c.clone(); for (let a = 0; a < 3; a++) v.addScaledVector(A.ax[a], (k >> a & 1 ? 1 : -1) * A.h[a]);
+      if (v.y <= groundAt(v.x, -v.z) + .1) grounded[i] = 1;
     }
-    box[i] = [lo, hi]; cen[i] = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+    for (let x = Math.floor(A.lo[0] / CS); x <= Math.floor(A.hi[0] / CS); x++) for (let z = Math.floor(A.lo[2] / CS); z <= Math.floor(A.hi[2] / CS); z++) for (const j of cell.get(key(x, z)) || []) {
+      if (j === i || seen.has(j)) continue; seen.add(j);
+      const B = box[j];
+      if (B.lo[0] > A.hi[0] + .1 || B.hi[0] < A.lo[0] - .1 || B.lo[1] > A.hi[1] + .1 || B.hi[1] < A.lo[1] - .1 || B.lo[2] > A.hi[2] + .1 || B.hi[2] < A.lo[2] - .1) continue;
+      if (ms(j)[4] === 0 || !obbTouch(A, B, .05)) continue;
+      const [, , hL, vL] = ms(i), dist = A.c.distanceTo(B.c) + .1;
+      let k = 1 - hL * dist, pv = null, off = null;          // what it gives as a sideways holder
+      const pt = closestOnBox(B, A.c);
+      if (pt.y < A.c.y + .05) {                              // it holds this piece from below
+        const dir = pt.clone().sub(A.c).normalize();
+        if (dir.y < 0) { const t = Math.acos(1 - Math.abs(dir.y)) / (Math.PI / 2); k = Math.max(k, 1 - (hL + (vL - hL) * t) * dist); }
+        pv = 1 - vL * dist; off = [pt.x - A.c.x, pt.z - A.c.z];
+      }
+      L.push([j, k, pv, off]);
+    }
+    links[i] = L;
   }
-  // pieces near each other (2 m grid on the ground plane)
-  const cell = new Map(), key = (x, z) => x + "," + z;
-  for (let i = 0; i < n; i++) if (box[i]) { const [lo, hi] = box[i];
-    for (let x = Math.floor(lo[0] / 2); x <= Math.floor(hi[0] / 2); x++) for (let z = Math.floor(lo[2] / 2); z <= Math.floor(hi[2] / 2); z++) { const k = key(x, z); (cell.get(k) || cell.set(k, []).get(k)).push(i); } }
-  const touch = (a, b) => { const A = box[a], B = box[b], m = .12; return A[0][0] - m <= B[1][0] && B[0][0] - m <= A[1][0] && A[0][1] - m <= B[1][1] && B[0][1] - m <= A[1][1] && A[0][2] - m <= B[1][2] && B[0][2] - m <= A[1][2]; };
-  const sup = new Float32Array(n).fill(-1), done = new Uint8Array(n), heap = [];
-  const push = i => { heap.push(i); let c = heap.length - 1; while (c > 0) { const pa = (c - 1) >> 1; if (sup[heap[pa]] >= sup[heap[c]]) break; [heap[pa], heap[c]] = [heap[c], heap[pa]]; c = pa; } };
-  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let c = 0; for (;;) { const l = 2 * c + 1, r = l + 1; let m = c; if (l < heap.length && sup[heap[l]] > sup[heap[m]]) m = l; if (r < heap.length && sup[heap[r]] > sup[heap[m]]) m = r; if (m === c) break; [heap[m], heap[c]] = [heap[c], heap[m]]; c = m; } } return top; };
-  for (let i = 0; i < n; i++) if (box[i] && box[i][0][1] <= groundAt(cen[i][0], cen[i][2]) + .25) { sup[i] = S[P[i][0]].ms[0]; push(i); }
-  while (heap.length) {
-    const i = pop(); if (done[i]) continue; done[i] = 1;
-    if (S[P[i][0]].ms[4] === 0) continue;            // this piece doesn't pass support on
-    const [lo, hi] = box[i], seen = new Set();
-    for (let x = Math.floor(lo[0] / 2); x <= Math.floor(hi[0] / 2); x++) for (let z = Math.floor(lo[2] / 2); z <= Math.floor(hi[2] / 2); z++) for (const j of cell.get(key(x, z)) || []) {
-      if (j === i || done[j] || seen.has(j)) continue; seen.add(j); if (!touch(i, j)) continue;
-      const m = S[P[j][0]].ms, dx = cen[j][0] - cen[i][0], dy = cen[j][1] - cen[i][1], dz = cen[j][2] - cen[i][2], dist = Math.hypot(dx, dy, dz) || 1;
-      const up = Math.abs(dy) / dist, loss = m[2] + (m[3] - m[2]) * up;   // ms = [max, min, sideways loss, up/down loss, passes on]
-      const cand = Math.min(m[0], sup[i]) - m[0] * loss;
-      if (cand > sup[j]) { sup[j] = cand; push(j); }
+  // settle: start from the ground and repeat until nothing changes
+  const sup = new Float32Array(n);
+  for (let i = 0; i < n; i++) if (box[i] && grounded[i]) sup[i] = ms(i)[0];
+  for (let pass = 0; pass < 400; pass++) {
+    let changed = false;
+    for (let i = 0; i < n; i++) {
+      if (!box[i] || grounded[i]) continue;
+      let best = 0; const below = [];
+      for (const [j, k, pv, off] of links[i]) { const Sj = sup[j]; if (Sj <= 0) continue; best = Math.max(best, Sj * k); if (pv !== null) below.push([Sj * pv, off]); }
+      for (let a = 0; a < below.length; a++) for (let b = a + 1; b < below.length; b++) {
+        const avg = (below[a][0] + below[b][0]) / 2; if (avg <= best) continue;
+        const u = below[a][1], v = below[b][1], lu = Math.hypot(u[0], u[1]), lv = Math.hypot(v[0], v[1]);
+        if (lu > 1e-4 && lv > 1e-4 && Math.acos(Math.max(-1, Math.min(1, (u[0] * v[0] + u[1] * v[1]) / (lu * lv)))) * 180 / Math.PI >= 100) best = avg;
+      }
+      const nv = Math.min(ms(i)[0], best);
+      if (Math.abs(nv - sup[i]) > .01) { sup[i] = nv; changed = true; }
     }
+    if (!changed) break;
   }
   const map = new Map();
-  for (let i = 0; i < n; i++) if (box[i]) { const m = S[P[i][0]].ms; map.set(i, sup[i] < 0 ? 0 : sup[i] >= m[0] - .01 ? 1 : Math.max(0, Math.min(.98, (sup[i] - m[1]) / Math.max(1, m[0] - m[1])))); }
+  for (let i = 0; i < n; i++) if (box[i]) { const [mx, mn] = ms(i), s2 = sup[i];
+    map.set(i, s2 >= mx - .001 ? -1 : Math.max(0, Math.min(1, (s2 - mn) / (mx * .5 - mn)))); }
   B3.supEst = { sig, map };
   return map;
 }
-const supColor = f => f >= .99 ? 0x3d7fe0 : f >= .5 ? 0x4ec25a : f >= .25 ? 0xe8c547 : 0xe0433a;
+const supColor = v => { if (v < 0) return 0x3d7fe0;
+  const lerp = (a, b, t) => { const ar = a >> 16, ag = a >> 8 & 255, ab = a & 255, br = b >> 16, bg = b >> 8 & 255, bb = b & 255;
+    return Math.round(ar + (br - ar) * t) << 16 | Math.round(ag + (bg - ag) * t) << 8 | Math.round(ab + (bb - ab) * t); };
+  return v < .5 ? lerp(0xe0433a, 0xe8c547, v * 2) : lerp(0xe8c547, 0x4ec25a, (v - .5) * 2); };
 function integrityText(mesh, k) {
   const i = mesh.userData.idx && mesh.userData.idx[k]; if (i == null) return "";
   const { hp, sup, est } = integrityMaps(), out = [];
   if (B3.integrity !== "sup" && hp.has(i)) out.push("health " + Math.round(hp.get(i) * 100) + "%");
-  if (B3.integrity !== "dmg" && sup.has(i)) out.push("support " + Math.round(sup.get(i) * 100) + "%" + (est ? " (est.)" : ""));
+  if (B3.integrity !== "dmg" && sup.has(i)) out.push((sup.get(i) < 0 ? "full support" : "support " + Math.round(sup.get(i) * 100) + "%") + (est ? " (est.)" : ""));
   return out.length ? " · " + out.join(" · ") : "";
 }
 function applyIntegrity() {
@@ -2027,8 +2103,8 @@ function applyIntegrity() {
   if (mode === "sup") {
     key.hidden = false;
     key.innerHTML = `<b style="font:800 14px var(--display)">Support${est ? " (estimated)" : ""}</b><br>` +
-      `<i style="background:#3d7fe0"></i>On the ground <i style="background:#4ec25a"></i>Strong <i style="background:#e8c547"></i>Weak <i style="background:#e0433a"></i>About to fall<br>` +
-      `<span style="color:#b9c3cc">${sup.size ? (est ? "Worked out from how the pieces touch; the game may differ a little." : "") : "Support colours need Wall Live 2.1.0 on the server."}</span>`;
+      `<i style="background:#3d7fe0"></i>Full <i style="background:#4ec25a"></i>Strong <i style="background:#e8c547"></i>Weak <i style="background:#e0433a"></i>About to fall<br>` +
+      `<span style="color:#b9c3cc">${sup.size ? (est ? "Worked out with the game's own support rule from how the pieces touch. Colours match the game's building colours; small differences are possible." : "") : "Support colours need Wall Live 2.1.0 on the server."}</span>`;
   } else if (mode === "dmg") {
     const v = [...hp.values()], worst = v.length ? Math.min(...v) : 1;
     key.hidden = false;
@@ -2358,12 +2434,14 @@ function showTab(t, fromUser) {
   if (t === "live") { $("#liveDot").hidden = true; requestAnimationFrame(() => { const c = $("#chatLog"); c.scrollTop = c.scrollHeight; }); }
   if (t !== "news") try { localStorage.setItem("kh-tab", t); } catch (e) {}
   if (fromUser) history.replaceState(null, "", "#" + t);
+  if (t === "map" && M.pendingFit) { fitView(...M.pendingFit); drawMap(); }
   requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
   if (fromUser) window.scrollTo({ top: 0 });
 }
 $("#tabs").addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b) showTab(b.dataset.go, true); });
 { const h = location.hash.slice(1); let saved = null; try { saved = localStorage.getItem("kh-tab"); } catch (e) {}
   showTab(["find", "map", "base", "live", "stock"].includes(h) ? h : saved || "find"); }
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (["find", "map", "base", "live", "stock"].includes(h)) showTab(h); });
 // links and buttons that jump to a section open that section's tab first
 { const orig = Element.prototype.scrollIntoView;
   Element.prototype.scrollIntoView = function (o) { const sec = this.closest && this.closest(".wrap>[data-tab]"); if (sec) showTab(sec.dataset.tab); return orig.call(this, o); }; }
@@ -2373,9 +2451,10 @@ document.addEventListener("click", e => { document.querySelectorAll("details.mor
 // ---- release notes (newest first; add a new entry at the top for each update) ----
 const NOTES = [
   { id: "2026-10-24", date: "24 October 2026", title: "Cleaner layout", items: [
-    "<b>Tabs</b>: the page is split into Find, Map, Base, Live and Stock, so you see one thing at a time.",
+    "<b>Tabs</b>: the page is split into Find, Map, Base, Live and Stock, so you see one thing at a time. Getting full and Out of place moved to Stock.",
+    "<b>Tidier top</b>: server status in one bar, What's new and Raid horn top right. Long chest names now fit.",
     "<b>Base in 3D</b>: Support and Damage are now separate views. Hide roofs, Spin and Full screen moved under <b>More</b>.",
-    "<b>Support view</b> works out which pieces are on the ground, strong, weak or about to fall.",
+    "<b>Support view</b> uses the game's own support rule, with the same blue / green / yellow / red as the building colours in game.",
     "This <b>What's new</b> page." ] },
   { id: "2026-10-23", date: "23 October 2026", title: "Chat, weather and damage", items: [
     "<b>Chat from the website</b>: messages show in the game chat as [Web] name, and game chat shows here.",
@@ -2393,9 +2472,16 @@ const NOTES = [
     "<b>Shared to-do list</b>: type <b>todo</b> in game chat to add things.",
     "<b>Item history</b> with date ranges, and the <b>raid horn</b>." ] },
 ];
+const PLANNED = [
+  ["Start and stop the server from the website", "with an admin password, so nobody needs the server PC for a restart."],
+  ["Server health panel", "how busy the server is, memory, and how long saves take."],
+  ["Automatic world backups", "with restore points you can pick from."],
+  ["Portal route planner", "pick where you want to go and get the quickest portal hops."],
+  ["Exact support colours", "read straight from the world instead of worked out on the website."],
+];
 function renderNotes() {
   let seen = null; try { seen = localStorage.getItem("kh-notes"); } catch (e) {}
-  $("#newsList").innerHTML = NOTES.map(n => `<article class="note-card${seen !== null && seen < n.id ? " fresh" : ""}"><h3>${esc(n.title)} <small>${esc(n.date)}</small>${seen !== null && seen < n.id ? `<span class="newtag">NEW</span>` : ""}</h3><ul>${n.items.map(i => `<li>${i}</li>`).join("")}</ul></article>`).join("");
+  $("#newsList").innerHTML = `<article class="note-card plan"><h3>🛠️ Planned <small>coming later</small></h3><ul>${PLANNED.map(([t, d]) => `<li><b>${esc(t)}</b>: ${esc(d)}</li>`).join("")}</ul></article>` + NOTES.map(n => `<article class="note-card${seen !== null && seen < n.id ? " fresh" : ""}"><h3>${esc(n.title)} <small>${esc(n.date)}</small>${seen !== null && seen < n.id ? `<span class="newtag">NEW</span>` : ""}</h3><ul>${n.items.map(i => `<li>${i}</li>`).join("")}</ul></article>`).join("");
 }
 { let seen = null; try { seen = localStorage.getItem("kh-notes"); } catch (e) {} $("#newsDot").hidden = seen === NOTES[0].id; }
 let tabBeforeNews = "find";
