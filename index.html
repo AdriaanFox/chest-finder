@@ -373,7 +373,7 @@ body.tv .tvbar{display:flex}
         <button class="tab" id="walkBtn" type="button" hidden>🚶 Walk around</button>
         <button class="tab" id="spawnBtn" type="button" hidden>Spawn-proof check</button>
         <button class="tab" id="fullBtn" type="button" hidden>⛶ Full screen</button>
-        <label class="rangebox" id="rangeBox" hidden>Range <input type="range" id="baseRange" min="20" max="150" step="5" value="60"> <b id="baseRangeV">60 m</b></label>
+        <label class="rangebox" id="rangeBox" hidden>Range <input type="range" id="baseRange" min="20" max="150" step="5" value="100"> <b id="baseRangeV">100 m</b></label>
         <input id="xq" type="search" placeholder="X-ray: find an item…" autocomplete="off" hidden>
         <span class="note" id="baseInfo">Waiting for the server…</span>
       </div>
@@ -1442,7 +1442,7 @@ function drawBaseSec() {
   const b = LAST_RAW && LAST_RAW.build, info = $("#baseInfo"), btn = $("#baseBtn");
   if (!b || !b.parts) { btn.disabled = true; info.textContent = LAST_RAW ? "The base model arrives once the server runs Wall Live 1.6." : "Waiting for the server…"; return; }
   btn.disabled = false;
-  info.textContent = `${fmt(b.parts.filter(p => b.shapes[p[0]] && !NOT_BUILDING.test(b.shapes[p[0]].n)).length)} building pieces within ${b.r} m of the storage wall · updates every 10 minutes`; $("#baseRange").max = b.r;
+  info.textContent = `${fmt(b.parts.filter(p => b.shapes[p[0]] && !NOT_BUILDING.test(b.shapes[p[0]].n)).length)} building pieces within ${b.r} m of the storage wall · updates every 10 minutes`; $("#baseRange").max = b.r; if (b.r < 100) $("#baseRangeV").title = "The server sends " + b.r + " m now; Wall Live 1.6.7 sends 150 m";
   const sig = b.parts.length + ":" + b.shapes.length + ":" + JSON.stringify(b.parts[b.parts.length - 1] || "");
   if (B3.r && B3.sig !== sig) buildBase(true);
   B3.sig = sig;
@@ -1478,7 +1478,7 @@ function buildBase(keepCam) {
   const paint = skyChip(box, null); let chipT = 0;
   // ground
   // how far around the storage wall to show (the server sends up to data.r metres)
-  const range = Math.min(data.r, B3.range || 60);
+  const range = Math.min(data.r, B3.range || 100);
   const parts = data.parts.filter(p => data.shapes[p[0]] && !NOT_BUILDING.test(data.shapes[p[0]].n) && Math.hypot(p[1], p[3]) <= range);
   // ground: only the square that covers the range
   const gnA = data.gn, gs = data.gs, G = data.ground, half = (gnA - 1) / 2, k = Math.min(half, Math.ceil((range + 6) / gs));
@@ -1777,7 +1777,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-23-2300";
+const BUILD = "2026-10-23-2315";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
@@ -1825,7 +1825,7 @@ function toast(e) {
 
 
 // ---------- base view: range slider, spawn-proof check, full screen ----------
-try { B3.range = +localStorage.getItem("baseRange") || 60; } catch (e) { B3.range = 60; }
+try { B3.range = +localStorage.getItem("baseRange") || 100; } catch (e) { B3.range = 100; }
 $("#baseRange").value = B3.range; $("#baseRangeV").textContent = B3.range + " m";
 $("#baseRange").addEventListener("input", e => { $("#baseRangeV").textContent = e.target.value + " m"; });
 $("#baseRange").addEventListener("change", e => { B3.range = +e.target.value; try { localStorage.setItem("baseRange", B3.range); } catch (er) {} if (B3.r && !B3.walk) buildBase(false); });
