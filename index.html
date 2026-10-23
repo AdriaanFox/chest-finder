@@ -2029,7 +2029,7 @@ function estimateSupport() {
     // touching the ground? check the box's lowest corners against the terrain
     for (let k = 0; k < 8 && !grounded[i]; k++) {
       const v = A.c.clone(); for (let a = 0; a < 3; a++) v.addScaledVector(A.ax[a], (k >> a & 1 ? 1 : -1) * A.h[a]);
-      if (v.y <= groundAt(v.x, -v.z) + .1) grounded[i] = 1;
+      if (v.y <= groundAt(v.x, -v.z) + .3) grounded[i] = 1;   // ground is sent every 2.5 m, so allow a little
     }
     for (let x = Math.floor(A.lo[0] / CS); x <= Math.floor(A.hi[0] / CS); x++) for (let z = Math.floor(A.lo[2] / CS); z <= Math.floor(A.hi[2] / CS); z++) for (const j of cell.get(key(x, z)) || []) {
       if (j === i || seen.has(j)) continue; seen.add(j);
