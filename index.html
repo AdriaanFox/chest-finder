@@ -1814,7 +1814,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-23-2355";
+const BUILD = "2026-10-24-0015";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
@@ -1906,22 +1906,75 @@ document.addEventListener("fullscreenchange", () => setTimeout(() => window.disp
 
 // ---------- integrity: support (the game's blue/green/yellow/red) and damage for every piece ----------
 function integrityMaps() {
-  const d = LAST_RAW && LAST_RAW.build, hp = new Map(), sup = new Map();
+  const d = LAST_RAW && LAST_RAW.build, hp = new Map();
+  let sup = new Map(), est = false;
   for (const [i, f] of (d && d.dmg) || []) hp.set(i, f);
   for (const [i, f] of (d && d.sup) || []) sup.set(i, f);
-  return { hp, sup };
+  if (!sup.size) { const e = estimateSupport(); if (e) { sup = e; est = true; } }
+  return { hp, sup, est };
+}
+// The game works out support on the players' computers, so the server can't report it.
+// This redoes the game's rule on the website: pieces touching the ground get full support, and support
+// flows from piece to piece, losing a bit per step (more sideways than up/down) according to each material.
+function estimateSupport() {
+  const d = LAST_RAW && LAST_RAW.build; if (!d || !d.shapes.some(x => x.ms)) return null;
+  const sig = d.parts.length + ":" + JSON.stringify(d.parts[d.parts.length - 1]);
+  if (B3.supEst && B3.supEst.sig === sig) return B3.supEst.map;
+  const P = d.parts, S = d.shapes, n = P.length, gn = d.gn, gs = d.gs, G = d.ground, half = (gn - 1) / 2;
+  const groundAt = (x, z) => { const fx = Math.max(0, Math.min(gn - 1.001, x / gs + half)), fz = Math.max(0, Math.min(gn - 1.001, z / gs + half)), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
+    return (G[j * gn + i] * (1 - tx) + G[j * gn + i + 1] * tx) * (1 - tz) + (G[(j + 1) * gn + i] * (1 - tx) + G[(j + 1) * gn + i + 1] * tx) * tz; };
+  const box = new Array(n), cen = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const p = P[i], sh = S[p[0]]; if (!sh || !sh.ms || NOT_BUILDING.test(sh.n)) continue;
+    const b = sh.b; let qx = 0, qy = 0, qz = 0, qw = 1;
+    if (p.length === 5) { const a = p[4] * Math.PI / 360; qy = Math.sin(a); qw = Math.cos(a); } else { qx = p[4]; qy = p[5]; qz = p[6]; qw = p[7]; }
+    const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+    for (let k = 0; k < 8; k++) {
+      const vx = k & 1 ? b[3] : b[0], vy = k & 2 ? b[4] : b[1], vz = k & 4 ? b[5] : b[2];
+      // rotate by the quaternion (Valheim's own axes), then move to the piece's place
+      const tx = 2 * (qy * vz - qz * vy), ty = 2 * (qz * vx - qx * vz), tz = 2 * (qx * vy - qy * vx);
+      const r = [vx + qw * tx + (qy * tz - qz * ty) + p[1], vy + qw * ty + (qz * tx - qx * tz) + p[2], vz + qw * tz + (qx * ty - qy * tx) + p[3]];
+      for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], r[a]); hi[a] = Math.max(hi[a], r[a]); }
+    }
+    box[i] = [lo, hi]; cen[i] = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+  }
+  // pieces near each other (2 m grid on the ground plane)
+  const cell = new Map(), key = (x, z) => x + "," + z;
+  for (let i = 0; i < n; i++) if (box[i]) { const [lo, hi] = box[i];
+    for (let x = Math.floor(lo[0] / 2); x <= Math.floor(hi[0] / 2); x++) for (let z = Math.floor(lo[2] / 2); z <= Math.floor(hi[2] / 2); z++) { const k = key(x, z); (cell.get(k) || cell.set(k, []).get(k)).push(i); } }
+  const touch = (a, b) => { const A = box[a], B = box[b], m = .12; return A[0][0] - m <= B[1][0] && B[0][0] - m <= A[1][0] && A[0][1] - m <= B[1][1] && B[0][1] - m <= A[1][1] && A[0][2] - m <= B[1][2] && B[0][2] - m <= A[1][2]; };
+  const sup = new Float32Array(n).fill(-1), done = new Uint8Array(n), heap = [];
+  const push = i => { heap.push(i); let c = heap.length - 1; while (c > 0) { const pa = (c - 1) >> 1; if (sup[heap[pa]] >= sup[heap[c]]) break; [heap[pa], heap[c]] = [heap[c], heap[pa]]; c = pa; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let c = 0; for (;;) { const l = 2 * c + 1, r = l + 1; let m = c; if (l < heap.length && sup[heap[l]] > sup[heap[m]]) m = l; if (r < heap.length && sup[heap[r]] > sup[heap[m]]) m = r; if (m === c) break; [heap[m], heap[c]] = [heap[c], heap[m]]; c = m; } } return top; };
+  for (let i = 0; i < n; i++) if (box[i] && box[i][0][1] <= groundAt(cen[i][0], cen[i][2]) + .25) { sup[i] = S[P[i][0]].ms[0]; push(i); }
+  while (heap.length) {
+    const i = pop(); if (done[i]) continue; done[i] = 1;
+    if (S[P[i][0]].ms[4] === 0) continue;            // this piece doesn't pass support on
+    const [lo, hi] = box[i], seen = new Set();
+    for (let x = Math.floor(lo[0] / 2); x <= Math.floor(hi[0] / 2); x++) for (let z = Math.floor(lo[2] / 2); z <= Math.floor(hi[2] / 2); z++) for (const j of cell.get(key(x, z)) || []) {
+      if (j === i || done[j] || seen.has(j)) continue; seen.add(j); if (!touch(i, j)) continue;
+      const m = S[P[j][0]].ms, dx = cen[j][0] - cen[i][0], dy = cen[j][1] - cen[i][1], dz = cen[j][2] - cen[i][2], dist = Math.hypot(dx, dy, dz) || 1;
+      const up = Math.abs(dy) / dist, loss = m[2] + (m[3] - m[2]) * up;   // ms = [max, min, sideways loss, up/down loss, passes on]
+      const cand = Math.min(m[0], sup[i]) - m[0] * loss;
+      if (cand > sup[j]) { sup[j] = cand; push(j); }
+    }
+  }
+  const map = new Map();
+  for (let i = 0; i < n; i++) if (box[i]) { const m = S[P[i][0]].ms; map.set(i, sup[i] < 0 ? 0 : sup[i] >= m[0] - .01 ? 1 : Math.max(0, Math.min(.98, (sup[i] - m[1]) / Math.max(1, m[0] - m[1])))); }
+  B3.supEst = { sig, map };
+  return map;
 }
 const supColor = f => f >= .99 ? 0x3d7fe0 : f >= .5 ? 0x4ec25a : f >= .25 ? 0xe8c547 : 0xe0433a;
 function integrityText(mesh, k) {
   const i = mesh.userData.idx && mesh.userData.idx[k]; if (i == null) return "";
   const { hp, sup } = integrityMaps(), out = [];
   if (hp.has(i)) out.push("health " + Math.round(hp.get(i) * 100) + "%");
-  if (sup.has(i)) out.push("support " + Math.round(sup.get(i) * 100) + "%");
+  if (sup.has(i)) out.push("support " + Math.round(sup.get(i) * 100) + "%" + (est ? " (est.)" : ""));
   return out.length ? " · " + out.join(" · ") : "";
 }
 function applyIntegrity() {
   if (!B3.meshes || !B3.THREE) return;
-  const THREE = B3.THREE, on = !!B3.integrity, { hp, sup } = integrityMaps(), c = new THREE.Color();
+  const THREE = B3.THREE, on = !!B3.integrity, { hp, sup, est } = integrityMaps(), c = new THREE.Color();
   for (const m of B3.meshes) {
     const mt = m.material; if (mt.userData.col === undefined) mt.userData.col = mt.color.getHex();
     if (!on) { if (m.instanceColor) { m.instanceColor = null; mt.color.setHex(mt.userData.col); mt.needsUpdate = true; } continue; }
@@ -1937,10 +1990,10 @@ function applyIntegrity() {
   if (on) {
     const dmgList = [...hp.values()], worst = dmgList.length ? Math.min(...dmgList) : 1;
     key.hidden = false;
-    key.innerHTML = `<b style="font:800 14px var(--display)">Integrity</b><br>` +
+    key.innerHTML = `<b style="font:800 14px var(--display)">Integrity${est ? " (support estimated)" : ""}</b><br>` +
       `<i style="background:#3d7fe0"></i>On the ground <i style="background:#4ec25a"></i>Strong <i style="background:#e8c547"></i>Weak <i style="background:#e0433a"></i>About to fall<br>` +
       `<i style="background:#ff8a2a"></i>Damaged <i style="background:#ff2a2a"></i>Badly damaged<br>` +
-      `<span style="color:#b9c3cc">${dmgList.length ? `${dmgList.length} damaged piece${dmgList.length === 1 ? "" : "s"}, worst at ${Math.round(worst * 100)}% health.` : "No damaged pieces."} ${sup.size ? "" : "Support shows once someone is at the base when the server scans (every 10 min)."}</span>`;
+      `<span style="color:#b9c3cc">${dmgList.length ? `${dmgList.length} damaged piece${dmgList.length === 1 ? "" : "s"}, worst at ${Math.round(worst * 100)}% health.` : "No damaged pieces."} ${sup.size ? (est ? "Support is worked out from how the pieces touch; the game may differ a little." : "") : "Support colours need Wall Live 2.1.0 on the server."}</span>`;
   } else if (!B3.spawn) key.hidden = true;
 }
 $("#intBtn").addEventListener("click", () => { B3.integrity = !B3.integrity; $("#intBtn").classList.toggle("on", B3.integrity); if (B3.integrity && B3.spawn) { B3.spawn = false; $("#spawnBtn").classList.remove("on"); if (B3.r) buildBase(true); } applyIntegrity(); });
