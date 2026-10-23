@@ -96,6 +96,31 @@ h1{font:900 clamp(34px,7vw,58px)/.95 var(--display);letter-spacing:.02em;margin:
 .list .row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:7px 0;border-top:1px dotted var(--line)}
 .list .row:first-of-type{border-top:0}
 .foot{color:var(--muted);font-size:14px;text-align:center}
+.newsbtn{position:relative;margin-left:6px}
+.newshead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.newslist{display:flex;flex-direction:column;gap:12px}
+.note-card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:14px 18px}
+.note-card.fresh{border-color:var(--ember);box-shadow:0 0 0 1px var(--ember) inset}
+.note-card h3{margin:0 0 6px;font:800 18px var(--display);display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.note-card h3 small{font:600 13px var(--body);color:var(--muted)}
+.note-card h3 .newtag{font:800 11px var(--body);letter-spacing:.08em;background:var(--ember);color:#1b130b;border-radius:999px;padding:2px 8px}
+.note-card ul{margin:0;padding-left:20px}.note-card li{margin:3px 0}
+.note-card li b{color:var(--ember)}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;display:flex;gap:6px;overflow-x:auto;padding:10px 0;margin:-6px 0 4px;background:linear-gradient(180deg,var(--bg) 78%,transparent);scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{flex:1 0 auto;position:relative;color:var(--fg);font:800 15px var(--body);border:1px solid var(--line);background:var(--bg2);border-radius:12px;padding:9px 14px;cursor:pointer;transition:border-color .15s,background .15s}
+nav.tabs button:hover{border-color:var(--ember)}
+@media (max-width:560px){nav.tabs{gap:4px}nav.tabs button{flex:1 1 0;min-width:0;padding:8px 2px;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:1px}}
+#newsClose{white-space:nowrap}
+nav.tabs button[aria-selected="true"]{background:var(--ember);border-color:var(--ember);color:#1b130b}
+.tdot{position:absolute;top:6px;right:7px;width:8px;height:8px;border-radius:50%;background:#ff5a4a;box-shadow:0 0 0 2px var(--bg2)}
+body[data-tab="find"] .wrap>[data-tab]:not([data-tab="find"]),body[data-tab="map"] .wrap>[data-tab]:not([data-tab="map"]),body[data-tab="base"] .wrap>[data-tab]:not([data-tab="base"]),body[data-tab="live"] .wrap>[data-tab]:not([data-tab="live"]),body[data-tab="stock"] .wrap>[data-tab]:not([data-tab="stock"]),body[data-tab="news"] .wrap>[data-tab]:not([data-tab="news"]){display:none!important}
+body.tv .wrap>#wallSec{display:flex!important}
+details.more{position:relative}
+details.more>summary{list-style:none;display:inline-block}
+details.more>summary::-webkit-details-marker{display:none}
+details.more .morepop{position:absolute;z-index:8;top:calc(100% + 6px);left:0;display:flex;flex-direction:column;gap:6px;padding:8px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.45);min-width:160px}
+details.more .morepop .tab{text-align:left}
 nav.jump{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;gap:6px;overflow-x:auto;padding:8px 0;margin:-8px 0;background:linear-gradient(180deg,var(--bg) 70%,transparent)}
 nav.jump a{flex:none;color:var(--fg);text-decoration:none;font:700 14px var(--body);border:1px solid var(--line);background:var(--bg2);border-radius:999px;padding:5px 12px}
 nav.jump a:hover,nav.jump a:focus-visible{border-color:var(--ember);outline:none}
@@ -148,7 +173,7 @@ nav.jump a:hover,nav.jump a:focus-visible{border-color:var(--ember);outline:none
 .bigbtn:hover{border-color:var(--ember)}
 body.tv .wrap>*:not(#wallSec){display:none!important}
 body.tv .wrap{max-width:none;padding:14px 18px;min-height:100vh;justify-content:center}
-body.tv #wallSec{display:flex;flex-direction:column;gap:10px}
+body.tv #wallSec{display:flex!important;flex-direction:column;gap:10px}
 body.tv .wall{min-width:0;grid-template-columns:28px repeat(24,minmax(0,1fr));gap:5px}
 body.tv .cell{min-height:calc((100vh - 190px)/4);font-size:clamp(9px,.9vw,16px);overflow-wrap:normal;word-break:normal;hyphens:auto}
 body.tv #wallSec .sec-h{display:none}
@@ -307,15 +332,18 @@ body.tv .tvbar{display:flex}
       <span class="status" id="status"><span class="dot"></span><span id="statusText">Loading the latest chest count…</span></span>
       <div class="srv" id="srv"></div>
       <button class="hornbtn" id="hornBtn" type="button"></button>
+      <button class="hornbtn newsbtn" id="newsBtn" type="button">✨ What's new <span class="tdot" id="newsDot" hidden></span></button>
     </div>
   </header>
   <div class="raidbar" id="raidBar" hidden></div>
 
-  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#todoSec">To-do</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#baseSec">Base</a><a href="#chatSec">Chat</a><a href="#feedSec">Feed</a><a href="#wxSec">Weather</a><a href="#catSec">Totals</a><a href="#histSec">History</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Areas">
+    <button type="button" role="tab" data-go="find"><span>🔎</span> Find</button><button type="button" role="tab" data-go="map"><span>🗺️</span> Map</button><button type="button" role="tab" data-go="base"><span>🏠</span> Base</button><button type="button" role="tab" data-go="live"><span>💬</span> Live <span class="tdot" id="liveDot" hidden></span></button><button type="button" role="tab" data-go="stock"><span>📦</span> Stock</button>
+  </nav>
 
-  <div class="stats" id="stats"></div>
+  <div class="stats" id="stats" data-tab="find"></div>
 
-  <div class="search" id="find">
+  <div class="search" id="find" data-tab="find">
     <label for="q" class="label">FIND AN ITEM</label>
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
     <input id="q" type="search" autocomplete="off" placeholder="bronze, molds, honey, wolf pelt…">
@@ -323,16 +351,16 @@ body.tv .tvbar{display:flex}
     <div class="recent" id="recent"></div>
   </div>
 
-  <section id="pinSec" hidden>
+  <section id="pinSec" data-tab="find" hidden>
     <p class="label">PINNED CHESTS</p>
     <div class="pins" id="pins"></div>
   </section>
 
-  <section id="chestView" hidden></section>
-  <div id="results" aria-live="polite"></div>
+  <section id="chestView" data-tab="find" hidden></section>
+  <div id="results" data-tab="find" aria-live="polite"></div>
 
 
-  <section id="todoSec">
+  <section id="todoSec" data-tab="live">
     <p class="label">TO-DO · SHARED BY EVERYONE ON THE SERVER</p>
     <div class="panel">
       <div class="todohow"><span>Add from game chat:</span><code>todo kill Fader</code><span>Finish:</span><code>done 3</code><span>See the list in game:</span><code>todo</code></div>
@@ -340,7 +368,7 @@ body.tv .tvbar{display:flex}
     </div>
   </section>
 
-  <section id="wallSec">
+  <section id="wallSec" data-tab="find">
     <div class="sec-h">
       <p class="label">THE WALL · TAP A CHEST TO OPEN IT</p>
       <div class="tabs"><button class="tab on" data-mode="cat" type="button">Categories</button><button class="tab" data-mode="heat" type="button">How full</button><button class="bigbtn" id="bigBtn" type="button">Big wall view</button></div>
@@ -349,7 +377,7 @@ body.tv .tvbar{display:flex}
     <div class="wallbox"><div class="wall" id="wall"></div><div class="legend" id="legend"></div></div>
   </section>
 
-  <section id="mapSec">
+  <section id="mapSec" data-tab="map">
     <p class="label">MAP · WHAT'S BEEN RECORDED AT THE CARTOGRAPHY TABLE</p>
     <div class="mapwrap">
       <div>
@@ -373,18 +401,19 @@ body.tv .tvbar{display:flex}
   </section>
 
 
-  <section id="baseSec">
+  <section id="baseSec" data-tab="base">
     <p class="label">OUR BASE IN 3D</p>
     <div class="panel basepanel">
       <div class="basebar">
         <button class="bigbtn" id="baseBtn" type="button">Show the base in 3D</button>
-        <button class="tab" id="roofBtn" type="button" hidden>Hide roofs</button>
-        <button class="tab" id="spinBtn" type="button" hidden>Spin</button>
         <button class="tab" id="walkBtn" type="button" hidden>🚶 Walk around</button>
         <button class="tab" id="spawnBtn" type="button" hidden>Spawn-proof check</button>
         <button class="tab" id="intBtn" type="button" hidden>Support</button>
         <button class="tab" id="dmgBtn" type="button" hidden>Damage</button>
-        <button class="tab" id="fullBtn" type="button" hidden>⛶ Full screen</button>
+        <details class="more" id="baseMore" hidden><summary class="tab">More ▾</summary><div class="morepop">
+          <button class="tab" id="roofBtn" type="button">Hide roofs</button>
+          <button class="tab" id="spinBtn" type="button">Spin</button>
+          <button class="tab" id="fullBtn" type="button">⛶ Full screen</button></div></details>
         <label class="rangebox" id="rangeBox" hidden>Range <input type="range" id="baseRange" min="20" max="150" step="5" value="100"> <b id="baseRangeV">100 m</b></label>
         <input id="xq" type="search" placeholder="X-ray: find an item…" autocomplete="off" hidden>
         <span class="note" id="baseInfo">Waiting for the server…</span>
@@ -396,7 +425,7 @@ body.tv .tvbar{display:flex}
   </section>
 
 
-  <section id="chatSec">
+  <section id="chatSec" data-tab="live">
     <p class="label">CHAT · TALK TO THE PEOPLE IN GAME</p>
     <div class="panel chatpanel">
       <div class="chatlog" id="chatLog" aria-live="polite"><p class="empty">Loading chat…</p></div>
@@ -410,7 +439,7 @@ body.tv .tvbar{display:flex}
     </div>
   </section>
 
-  <section id="feedSec">
+  <section id="feedSec" data-tab="live">
     <p class="label">WHAT'S HAPPENING</p>
     <div class="panel">
       <div class="seg" id="feedSeg"><button class="tab on" data-f="all" type="button">All</button><button class="tab" data-f="death" type="button">Deaths</button><button class="tab" data-f="raid" type="button">Raids &amp; invasions</button><button class="tab" data-f="boss" type="button">Bosses</button><button class="tab" data-f="join" type="button">Joins</button></div>
@@ -419,18 +448,18 @@ body.tv .tvbar{display:flex}
   </section>
 
 
-  <section id="wxSec">
+  <section id="wxSec" data-tab="live">
     <p class="label">WEATHER · WORKED OUT THE WAY THE GAME DOES IT</p>
     <div class="panel"><div id="wx"><p class="empty">Waiting for the server…</p></div></div>
   </section>
 
-  <section id="catSec">
+  <section id="catSec" data-tab="stock">
     <p class="label">TOTALS BY CATEGORY</p>
     <div class="panel"><div class="cats" id="cats"></div></div>
   </section>
 
 
-  <section id="histSec">
+  <section id="histSec" data-tab="stock">
     <p class="label">ITEM HISTORY</p>
     <div class="panel">
       <div class="seg" id="hrange"><button class="tab" data-hr="24" type="button">24 hours</button><button class="tab" data-hr="72" type="button">3 days</button><button class="tab" data-hr="168" type="button">7 days</button></div>
@@ -441,7 +470,7 @@ body.tv .tvbar{display:flex}
     </div>
   </section>
 
-  <section id="chgSec">
+  <section id="chgSec" data-tab="stock">
     <p class="label">WHAT CHANGED</p>
     <div class="panel">
       <div class="seg" id="chgSeg"><button class="tab on" data-h="1" type="button">Last hour</button><button class="tab" data-h="3" type="button">3 hours</button><button class="tab" data-h="12" type="button">12 hours</button><button class="tab" data-h="24" type="button">24 hours</button></div>
@@ -449,7 +478,7 @@ body.tv .tvbar{display:flex}
     </div>
   </section>
 
-  <section id="craftSec">
+  <section id="craftSec" data-tab="stock">
     <p class="label">CRAFT &amp; FETCH LIST · WHAT DO WE HAVE, WHAT TO GRAB</p>
     <div class="panel">
       <div class="craft-add">
@@ -463,12 +492,17 @@ body.tv .tvbar{display:flex}
     </div>
   </section>
 
-  <div class="lists" id="lists">
+  <div class="lists" id="lists" data-tab="find">
     <div class="list" id="fullList"></div>
     <div class="list" id="strayList"></div>
   </div>
 
-  <p class="foot">Counts come straight from the server every couple of minutes. How full a chest is, is worked out from stack sizes; the mark on each bar is where a wooden chest (10 slots) is full.</p>
+  <section id="newsSec" data-tab="news">
+    <div class="newshead"><p class="label">RELEASE NOTES · WHAT'S NEW ON THE HUB</p><button class="tab" id="newsClose" type="button">← Back</button></div>
+    <div class="newslist" id="newsList"></div>
+  </section>
+
+  <p class="foot" data-tab="find">Counts come straight from the server every couple of minutes. How full a chest is, is worked out from stack sizes; the mark on each bar is where a wooden chest (10 slots) is full.</p>
 </div>
 
 <script>
@@ -1487,9 +1521,9 @@ function drawBaseSec() {
 async function openBase(on) {
   const boxEl = $("#baseBox"); B3.open = on; boxEl.hidden = !on;
   $("#baseBtn").textContent = on ? "Close the 3D base" : "Show the base in 3D";
-  $("#roofBtn").hidden = $("#spinBtn").hidden = $("#xq").hidden = !on;
+  $("#baseMore").hidden = $("#xq").hidden = !on;
   $("#walkBtn").hidden = !on || matchMedia("(pointer: coarse)").matches;
-  $("#spawnBtn").hidden = $("#fullBtn").hidden = $("#rangeBox").hidden = $("#intBtn").hidden = $("#dmgBtn").hidden = !on;
+  $("#spawnBtn").hidden = $("#rangeBox").hidden = $("#intBtn").hidden = $("#dmgBtn").hidden = !on;
   if (!on) { if (B3.walk) stopWalk(); cancelAnimationFrame(B3.raf); if (B3.r) { B3.r.dispose(); $("#base3d").innerHTML = ""; B3.r = null; } return; }
   $("#base3d").innerHTML = `<p class="empty" style="padding:16px">Loading 3D…</p>`;
   try {
@@ -1815,7 +1849,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-24-0010b";
+const BUILD = "2026-10-24-0030";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
@@ -1864,6 +1898,7 @@ async function loadChat() {
       : `<p class="empty">No messages yet. Say hi!</p>`;
     if (atBottom || chatSeen === null) el.scrollTop = el.scrollHeight;
     const newest = list.length ? list[list.length - 1].at : 0;
+    if (chatSeen !== null && newest > chatSeen && document.body.dataset.tab !== "live") $("#liveDot").hidden = false;
     if (chatSeen !== null && newest > chatSeen) for (const m of list.filter(m => m.at > chatSeen && m.from === "game").slice(-2)) toast({ k: "join", m: `${m.n}: ${m.t}` });
     chatSeen = newest;
   } catch (e) { $("#chatLog").innerHTML = `<p class="empty">Chat is offline right now.</p>`; }
@@ -2313,6 +2348,63 @@ setInterval(() => { if (!document.hidden) load(); }, 30000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
 // "What changed" refreshes itself every 6 minutes (GitHub limits how often a browser may ask)
 setInterval(showStatus, 30000);
+
+// ---- tabs: one area at a time ----
+function showTab(t, fromUser) {
+  if (!["find", "map", "base", "live", "stock", "news"].includes(t)) t = "find";
+  if (document.body.dataset.tab === t) return;
+  document.body.dataset.tab = t;
+  document.querySelectorAll("#tabs [data-go]").forEach(b => b.setAttribute("aria-selected", b.dataset.go === t));
+  if (t === "live") { $("#liveDot").hidden = true; requestAnimationFrame(() => { const c = $("#chatLog"); c.scrollTop = c.scrollHeight; }); }
+  if (t !== "news") try { localStorage.setItem("kh-tab", t); } catch (e) {}
+  if (fromUser) history.replaceState(null, "", "#" + t);
+  requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+  if (fromUser) window.scrollTo({ top: 0 });
+}
+$("#tabs").addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b) showTab(b.dataset.go, true); });
+{ const h = location.hash.slice(1); let saved = null; try { saved = localStorage.getItem("kh-tab"); } catch (e) {}
+  showTab(["find", "map", "base", "live", "stock"].includes(h) ? h : saved || "find"); }
+// links and buttons that jump to a section open that section's tab first
+{ const orig = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = function (o) { const sec = this.closest && this.closest(".wrap>[data-tab]"); if (sec) showTab(sec.dataset.tab); return orig.call(this, o); }; }
+// close the More menu when clicking elsewhere
+document.addEventListener("click", e => { document.querySelectorAll("details.more[open]").forEach(d => { if (!d.contains(e.target)) d.open = false; }); });
+
+// ---- release notes (newest first; add a new entry at the top for each update) ----
+const NOTES = [
+  { id: "2026-10-24", date: "24 October 2026", title: "Cleaner layout", items: [
+    "<b>Tabs</b>: the page is split into Find, Map, Base, Live and Stock, so you see one thing at a time.",
+    "<b>Base in 3D</b>: Support and Damage are now separate views. Hide roofs, Spin and Full screen moved under <b>More</b>.",
+    "<b>Support view</b> works out which pieces are on the ground, strong, weak or about to fall.",
+    "This <b>What's new</b> page." ] },
+  { id: "2026-10-23", date: "23 October 2026", title: "Chat, weather and damage", items: [
+    "<b>Chat from the website</b>: messages show in the game chat as [Web] name, and game chat shows here.",
+    "<b>Weather forecast</b> for the base, with what's coming next.",
+    "<b>Damage view</b> in the 3D base shows hurt building pieces.",
+    "<b>Spawn-proof check</b> in the 3D base, and the base range now goes up to 150 m.",
+    "<b>Sign search</b> on the map (Portals / Signs tabs). Clicking a sign flashes it in game.",
+    "<b>Jötunn invasions</b> show on the map.",
+    "<b>What changed</b> fixed, now built from the server's own history." ] },
+  { id: "2026-10-00", date: "Earlier in October", title: "The big features", items: [
+    "Renamed to <b>Kaaphalla Hub</b>.",
+    "<b>Live sky</b>: day/night and weather from the server.",
+    "<b>Our base in 3D</b> with X-ray item search and walk mode.",
+    "<b>Portal network</b> on the map, with a beam to each portal's partner, and a sharper map.",
+    "<b>Shared to-do list</b>: type <b>todo</b> in game chat to add things.",
+    "<b>Item history</b> with date ranges, and the <b>raid horn</b>." ] },
+];
+function renderNotes() {
+  let seen = null; try { seen = localStorage.getItem("kh-notes"); } catch (e) {}
+  $("#newsList").innerHTML = NOTES.map(n => `<article class="note-card${seen !== null && seen < n.id ? " fresh" : ""}"><h3>${esc(n.title)} <small>${esc(n.date)}</small>${seen !== null && seen < n.id ? `<span class="newtag">NEW</span>` : ""}</h3><ul>${n.items.map(i => `<li>${i}</li>`).join("")}</ul></article>`).join("");
+}
+{ let seen = null; try { seen = localStorage.getItem("kh-notes"); } catch (e) {} $("#newsDot").hidden = seen === NOTES[0].id; }
+let tabBeforeNews = "find";
+$("#newsBtn").addEventListener("click", () => {
+  if (document.body.dataset.tab === "news") return showTab(tabBeforeNews, true);
+  tabBeforeNews = document.body.dataset.tab || "find"; renderNotes(); showTab("news", true);
+  $("#newsDot").hidden = true; try { localStorage.setItem("kh-notes", NOTES[0].id); } catch (e) {}
+});
+$("#newsClose").addEventListener("click", () => showTab(tabBeforeNews, true));
 </script>
 </body>
 </html>
