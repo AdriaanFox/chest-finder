@@ -879,7 +879,7 @@ function drawMap() {
   }
   drawSignMarks(S, W, H, d);
   // Jotun invasions: shown like the game shows them, even under the fog
-  for (const v of (map && map.invasions) || []) {
+  for (const v of invasionsOf(map)) {
     const [x, y] = S(v.x, v.z); if (x < -40 || y < -40 || x > W + 40 || y > H + 40) continue;
     const ph = (performance.now() / 1400) % 1;
     mctx.save();
@@ -897,6 +897,8 @@ function drawMap() {
 }
 
 
+// Jotun invasions from the server, minus normal Deep North creatures/spawners an older mod version mistook for one
+function invasionsOf(map) { return ((map && map.invasions) || []).filter(v => !/^(spawner_|trophy)?jotun(witch|warrior)/.test(v.k || "")); }
 // ---------- sign search on the map (every sign in the world, sent by the server) ----------
 function signMatches() {
   const q = norm($("#sq").value), all = (LAST_RAW && LAST_RAW.map && LAST_RAW.map.signs) || [];
@@ -1044,7 +1046,7 @@ function links() {
 let mapVisible = false, lastFrame = 0;
 new IntersectionObserver(es => { mapVisible = es[0].isIntersecting; if (mapVisible) loop(); }).observe(document.querySelector(".mapbox"));
 function loop(t) {
-  const inv = LAST_RAW && LAST_RAW.map && (LAST_RAW.map.invasions || []).length;
+  const inv = LAST_RAW && invasionsOf(LAST_RAW.map).length;
   if (!mapVisible || M.view3d || (!links().length && !inv) || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (!t || t - lastFrame > 33) { lastFrame = t || 0; drawMap(); }
   requestAnimationFrame(loop);
@@ -1193,7 +1195,7 @@ function build3D(box, HN, R, H, water) {
     const dot = new THREE.Mesh(new THREE.SphereGeometry(2.2, 10, 10), new THREE.MeshBasicMaterial({ color: 0xffffff })); scene.add(dot);
     glows.push({ curve, dot, off: Math.random() });
   }
-  for (const v of (map && map.invasions) || []) {
+  for (const v of invasionsOf(map)) {
     const at = P(v.x, v.z, 0);
     const col = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 4, 220, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xff5a40, transparent: true, opacity: .45, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
     col.position.set(at.x, at.y + 110, at.z); scene.add(col);
@@ -1777,7 +1779,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-23-2315";
+const BUILD = "2026-10-23-2330";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
