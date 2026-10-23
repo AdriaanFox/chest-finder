@@ -251,6 +251,14 @@ body.tv .tvbar{display:flex}
 .wxc{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center}
 .wxc .i{font-size:22px} .wxc b{display:block;font-size:13.5px;margin-top:2px} .wxc span{display:block;color:var(--muted);font-size:12.5px}
 .wxc.bad{border-color:#6b3a2c} .wxh{margin:16px 0 0;font:800 13px var(--display);letter-spacing:.18em;color:var(--muted)}
+.chatlog{max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:4px 2px 10px}
+.cmsg{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:baseline;padding:6px 10px;border-radius:10px;background:var(--bg2)}
+.cmsg.web{border-left:3px solid var(--ember)} .cmsg.game{border-left:3px solid #6fd38f}
+.cmsg b{font:800 14.5px var(--display);letter-spacing:.03em} .cmsg span{overflow-wrap:anywhere} .cmsg i{font-style:normal;color:var(--muted);font-size:12.5px;white-space:nowrap}
+.chatform{display:grid;grid-template-columns:150px 1fr 170px auto;gap:8px}
+.chatform input{font:inherit;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg2);color:var(--fg);min-width:0}
+.chatform input:focus{outline:none;border-color:var(--ember)}
+@media (max-width:720px){.chatform{grid-template-columns:1fr 1fr}.chatform #chatText{grid-column:1/-1;order:-1}}
 .mapbox{position:relative;border:1px solid var(--wood-line);border-radius:14px;overflow:hidden;background:#0a1016;touch-action:none;height:min(72vh,640px)}
 #map{display:block;width:100%;height:100%;cursor:grab}
 #map.drag{cursor:grabbing}
@@ -303,7 +311,7 @@ body.tv .tvbar{display:flex}
   </header>
   <div class="raidbar" id="raidBar" hidden></div>
 
-  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#todoSec">To-do</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#baseSec">Base</a><a href="#feedSec">Feed</a><a href="#wxSec">Weather</a><a href="#catSec">Totals</a><a href="#histSec">History</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
+  <nav class="jump" aria-label="Sections"><a href="#find">Find</a><a href="#pinSec">Pinned</a><a href="#todoSec">To-do</a><a href="#wallSec">Wall</a><a href="#mapSec">Map</a><a href="#baseSec">Base</a><a href="#chatSec">Chat</a><a href="#feedSec">Feed</a><a href="#wxSec">Weather</a><a href="#catSec">Totals</a><a href="#histSec">History</a><a href="#chgSec">Changes</a><a href="#craftSec">List</a><a href="#lists">Full &amp; out of place</a></nav>
 
   <div class="stats" id="stats"></div>
 
@@ -382,6 +390,21 @@ body.tv .tvbar{display:flex}
       <div class="basebox" id="baseBox" hidden><div id="base3d" style="position:absolute;inset:0"></div><div class="basetip" id="baseTip" hidden></div><div class="basecard" id="baseCard" hidden></div>
         <div class="walkmsg" id="walkMsg" hidden></div><div class="spawnkey" id="spawnKey" hidden></div><div class="cross" id="cross" hidden></div>
         <span class="maphint">Drag to turn · right-drag to move · scroll or pinch to zoom</span></div>
+    </div>
+  </section>
+
+
+  <section id="chatSec">
+    <p class="label">CHAT · TALK TO THE PEOPLE IN GAME</p>
+    <div class="panel chatpanel">
+      <div class="chatlog" id="chatLog" aria-live="polite"><p class="empty">Loading chat…</p></div>
+      <form class="chatform" id="chatForm" autocomplete="off">
+        <input id="chatName" maxlength="20" placeholder="Your name" required>
+        <input id="chatText" maxlength="120" placeholder="Message to everyone in game…" required>
+        <input id="chatPass" type="password" placeholder="Group password" required>
+        <button class="bigbtn" type="submit">Send</button>
+      </form>
+      <p class="note" id="chatNote">Messages pop up top-left in game for everyone online. Chat from the game shows here too.</p>
     </div>
   </section>
 
@@ -1789,7 +1812,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-23-2340";
+const BUILD = "2026-10-23-2310c";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
@@ -1823,6 +1846,39 @@ function drawWeather() {
     <div class="wxrow">${Object.entries(W.biomes || {}).map(([b, w]) => `<div class="wxc ${bad(w) ? "bad" : ""}"><div class="i">${wxIcon(w)}</div><b>${esc(BIOME_NAMES[b] || b)}</b><span>${esc(weatherName(w))}</span></div>`).join("")}</div>
     <p class="note" style="margin:10px 0 0">Real minutes from now, and the in-game clock. Bosses and raids can bring their own weather.</p>`;
 }
+
+
+// ---------- chat with the game through the relay (Cloudflare worker) ----------
+const RELAY = "https://kaaphalla-chat.aadriaan9999.workers.dev";
+let chatSeen = null;
+try { $("#chatName").value = localStorage.getItem("chatName") || ""; $("#chatPass").value = localStorage.getItem("chatPass") || ""; } catch (e) {}
+async function loadChat() {
+  try {
+    const r = await fetch(RELAY + "/log", { cache: "no-store" }); if (!r.ok) throw 0;
+    const d = await r.json(), list = (d.msgs || []).slice(-50), el = $("#chatLog");
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    el.innerHTML = list.length ? list.map(m => `<div class="cmsg ${m.from === "web" ? "web" : "game"}"><b>${m.from === "web" ? "🌐" : "🎮"} ${esc(m.n)}</b><span>${esc(m.t)}</span><i title="${esc(new Date(m.at).toLocaleString())}">${ago(new Date(m.at))}</i></div>`).join("")
+      : `<p class="empty">No messages yet. Say hi!</p>`;
+    if (atBottom || chatSeen === null) el.scrollTop = el.scrollHeight;
+    const newest = list.length ? list[list.length - 1].at : 0;
+    if (chatSeen !== null && newest > chatSeen) for (const m of list.filter(m => m.at > chatSeen && m.from === "game").slice(-2)) toast({ k: "join", m: `${m.n}: ${m.t}` });
+    chatSeen = newest;
+  } catch (e) { $("#chatLog").innerHTML = `<p class="empty">Chat is offline right now.</p>`; }
+}
+$("#chatForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("#chatName").value.trim(), text = $("#chatText").value.trim(), pass = $("#chatPass").value, note = $("#chatNote");
+  if (!name || !text || !pass) return;
+  try { localStorage.setItem("chatName", name); localStorage.setItem("chatPass", pass); } catch (er) {}
+  note.textContent = "Sending…";
+  try {
+    const r = await fetch(RELAY + "/send", { method: "POST", body: JSON.stringify({ name, text, pass }) });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.ok) { $("#chatText").value = ""; note.textContent = "Sent. It shows in game within a few seconds."; loadChat(); }
+    else note.textContent = d.error === "wrong password" ? "Wrong group password." : d.error === "slow down" ? "Wait a few seconds between messages." : "Couldn't send. Try again.";
+  } catch (er) { note.textContent = "Couldn't reach the chat. Try again."; }
+});
+loadChat(); setInterval(() => { if (!document.hidden) loadChat(); }, 8000);
 
 // ---------- pop-up when something happens while the page is open ----------
 function toast(e) {
