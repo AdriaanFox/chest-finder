@@ -366,7 +366,7 @@ body.tv .tvbar{display:flex}
   <section id="feedSec">
     <p class="label">WHAT'S HAPPENING</p>
     <div class="panel">
-      <div class="seg" id="feedSeg"><button class="tab on" data-f="all" type="button">All</button><button class="tab" data-f="death" type="button">Deaths</button><button class="tab" data-f="raid" type="button">Raids</button><button class="tab" data-f="boss" type="button">Bosses</button><button class="tab" data-f="join" type="button">Joins</button></div>
+      <div class="seg" id="feedSeg"><button class="tab on" data-f="all" type="button">All</button><button class="tab" data-f="death" type="button">Deaths</button><button class="tab" data-f="raid" type="button">Raids &amp; invasions</button><button class="tab" data-f="boss" type="button">Bosses</button><button class="tab" data-f="join" type="button">Joins</button></div>
       <div class="feed" id="feed"><p class="empty">Waiting for the server…</p></div>
     </div>
   </section>
@@ -595,11 +595,11 @@ function drawLists() {
   $("#strayList").innerHTML = `<h3>Out of place</h3>` + (st.length ? st.slice(0, 30).map(x => `<div class="row"><b>${esc(nameOf(x.code))}</b><span class="pos">${fmt(x.n)} in</span>${signHtml(x.sign)}<span class="pos">→ belongs in</span>${signHtml(x.plan)}</div>`).join("") + (st.length > 30 ? `<p class="note">…and ${st.length - 30} more.</p>` : "") : `<p class="empty">Everything is where it belongs.</p>`);
 }
 let feedFilter = "all", seenEvents = null;
-const EVK = { death:["✝","#ff7a6b","Death"], raid:["!","#f2c14e","Raid"], raidend:["✓","#9aa59e","Raid over"], boss:["♛","#d9a6ff","Boss"], join:["+","#6fd38f","Joined"], leave:["–","#9aa59e","Left"], todo:["✔","#f2a93b","To-do"] };
+const EVK = { death:["✝","#ff7a6b","Death"], raid:["!","#f2c14e","Raid"], raidend:["✓","#9aa59e","Raid over"], boss:["♛","#d9a6ff","Boss"], join:["+","#6fd38f","Joined"], leave:["–","#9aa59e","Left"], todo:["✔","#f2a93b","To-do"], invasion:["❄","#7fd6ff","Jotun invasion"], invasionend:["✓","#9aa59e","Invasion cleared"] };
 function drawFeed() {
   const el = $("#feed"), ev = (LAST_RAW && LAST_RAW.events) || [];
   if (!LAST_RAW) return;
-  const list = ev.slice().reverse().filter(e => feedFilter === "all" || e.k === feedFilter || (feedFilter === "raid" && e.k === "raidend") || (feedFilter === "join" && e.k === "leave"));
+  const list = ev.slice().reverse().filter(e => feedFilter === "all" || e.k === feedFilter || (feedFilter === "raid" && /^(raidend|invasion|invasionend)$/.test(e.k)) || (feedFilter === "join" && e.k === "leave"));
   const fresh = new Set(seenEvents ? ev.filter(e => !seenEvents.has(e.t + e.m)).map(e => e.t + e.m) : []);
   seenEvents = new Set(ev.map(e => e.t + e.m));
   el.innerHTML = list.length ? list.slice(0, 40).map(e => { const k = EVK[e.k] || ["•","#9aa59e",""];
@@ -878,6 +878,21 @@ function drawMap() {
     if (p.t && M.s > (Math.min(W,H)/N) * 4) { mctx.font = `600 ${11*d}px "Alegreya Sans", sans-serif`; label(pinName(p.t), x, y - 7*d, "#f1ead9"); mctx.font = `700 ${fs}px "Alegreya Sans", sans-serif`; }
     mctx.globalAlpha = 1;
   }
+  // Jotun invasions: shown like the game shows them, even under the fog
+  for (const v of (map && map.invasions) || []) {
+    const [x, y] = S(v.x, v.z); if (x < -40 || y < -40 || x > W + 40 || y > H + 40) continue;
+    const ph = (performance.now() / 1400) % 1;
+    mctx.save();
+    mctx.strokeStyle = `rgba(255,90,70,${(1 - ph) * .8})`; mctx.lineWidth = 2.5 * d; mctx.beginPath(); mctx.arc(x, y, (8 + ph * 22) * d, 0, Math.PI * 2); mctx.stroke();
+    mctx.shadowColor = "#ff4a30"; mctx.shadowBlur = 16 * d; mctx.fillStyle = "#bdeeff"; mctx.strokeStyle = "#3a0a06"; mctx.lineWidth = 2 * d;
+    const r = 12 * d; mctx.beginPath();            // an ice crystal: a tall spike with two side shards
+    mctx.moveTo(x, y - r * 1.4); mctx.lineTo(x + r * .45, y); mctx.lineTo(x, y + r * .9); mctx.lineTo(x - r * .45, y); mctx.closePath(); mctx.fill(); mctx.stroke();
+    mctx.beginPath(); mctx.moveTo(x + r * .4, y - r * .2); mctx.lineTo(x + r * 1.05, y - r * .75); mctx.lineTo(x + r * .7, y + r * .25); mctx.closePath(); mctx.fill(); mctx.stroke();
+    mctx.beginPath(); mctx.moveTo(x - r * .4, y - r * .2); mctx.lineTo(x - r * 1.05, y - r * .75); mctx.lineTo(x - r * .7, y + r * .25); mctx.closePath(); mctx.fill(); mctx.stroke();
+    mctx.restore();
+    mctx.font = `800 ${12 * d}px "Alegreya Sans SC", "Alegreya Sans", sans-serif`; label("JOTUN INVASION", x, y - r * 1.4 - 6 * d, "#ffb3a6");
+    mctx.font = `700 ${12 * d}px "Alegreya Sans", sans-serif`;
+  }
   function label(t, x, y, c) { mctx.lineWidth = 3*d; mctx.strokeStyle = "rgba(0,0,0,.8)"; mctx.strokeText(t, x, y); mctx.fillStyle = c; mctx.fillText(t, x, y); }
 }
 
@@ -991,7 +1006,8 @@ function links() {
 let mapVisible = false, lastFrame = 0;
 new IntersectionObserver(es => { mapVisible = es[0].isIntersecting; if (mapVisible) loop(); }).observe(document.querySelector(".mapbox"));
 function loop(t) {
-  if (!mapVisible || M.view3d || !links().length || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const inv = LAST_RAW && LAST_RAW.map && (LAST_RAW.map.invasions || []).length;
+  if (!mapVisible || M.view3d || (!links().length && !inv) || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (!t || t - lastFrame > 33) { lastFrame = t || 0; drawMap(); }
   requestAnimationFrame(loop);
 }
@@ -1138,6 +1154,15 @@ function build3D(box, HN, R, H, water) {
     scene.add(tube); tubes.push({ a, b, mesh: tube });
     const dot = new THREE.Mesh(new THREE.SphereGeometry(2.2, 10, 10), new THREE.MeshBasicMaterial({ color: 0xffffff })); scene.add(dot);
     glows.push({ curve, dot, off: Math.random() });
+  }
+  for (const v of (map && map.invasions) || []) {
+    const at = P(v.x, v.z, 0);
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 4, 220, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xff5a40, transparent: true, opacity: .45, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+    col.position.set(at.x, at.y + 110, at.z); scene.add(col);
+    const ice = new THREE.Mesh(new THREE.ConeGeometry(4, 16, 5), new THREE.MeshBasicMaterial({ color: 0xbdeeff })); ice.position.set(at.x, at.y + 8, at.z); scene.add(ice);
+    const c = document.createElement("canvas"); c.width = 512; c.height = 96; const g2 = c.getContext("2d");
+    g2.font = '800 54px "Alegreya Sans SC", sans-serif'; g2.textAlign = "center"; g2.lineWidth = 10; g2.strokeStyle = "rgba(0,0,0,.85)"; g2.fillStyle = "#ffb3a6"; g2.strokeText("JOTUN INVASION", 256, 66); g2.fillText("JOTUN INVASION", 256, 66);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false })); sp.scale.set(44, 8.3, 1); sp.position.set(at.x, at.y + 28, at.z); sp.renderOrder = 5; scene.add(sp);
   }
   const base = map && map.base ? map.base : { x: 335, z: -465 };
   const bm = new THREE.Mesh(new THREE.ConeGeometry(4, 10, 4), new THREE.MeshBasicMaterial({ color: 0xf2a93b })); bm.position.copy(P(base.x, base.z, 8)); bm.rotation.x = Math.PI; scene.add(bm);
@@ -1693,7 +1718,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-23-2130";
+const BUILD = "2026-10-23-2215";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
