@@ -1465,25 +1465,25 @@ function partLook(n) {
   if (/karve|longship|raft|ship|boat/.test(n)) return { c: 0x7a5a3a };
   return { c: 0x9b6b3f };
 }
-function partGeo(THREE, sh) {
-  const b = sh.b, s = sh.s || [];
-  const box = () => { const g = new THREE.BoxGeometry(Math.max(.06, b[3] - b[0]), Math.max(.06, b[4] - b[1]), Math.max(.06, b[5] - b[2]));
+function partGeo(THREE, sh, out) {
+  const b = sh.b, s = sh.s || []; out = out || {}; out.R = new THREE.Matrix4();
+  const box = () => { out.R = new THREE.Matrix4(); const g = new THREE.BoxGeometry(Math.max(.06, b[3] - b[0]), Math.max(.06, b[4] - b[1]), Math.max(.06, b[5] - b[2]));
     g.translate((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, -(b[2] + b[5]) / 2); return g; };
   // roofs (no snap points sent): a sloped slab across the box, low at the back (-z) and high at the front (+z)
   if (s.length < 9 && /roof/.test(sh.n) && !/wall_roof|top|corner|cap/.test(sh.n) && !ROOF_FLIP.has("all")) {
     const zl = ROOF_FLIP.has(sh.n) ? -b[2] : -b[5], zh = ROOF_FLIP.has(sh.n) ? -b[5] : -b[2], yl = b[1], yh = b[4];
     const len = Math.hypot(zh - zl, yh - yl), g = new THREE.BoxGeometry(Math.max(.06, b[3] - b[0]), .16, len);
-    g.rotateX(-Math.atan2(yh - yl, zh - zl));
+    g.rotateX(-Math.atan2(yh - yl, zh - zl)); out.R = new THREE.Matrix4().makeRotationX(-Math.atan2(yh - yl, zh - zl));
     g.translate((b[0] + b[3]) / 2, (yl + yh) / 2, (zl + zh) / 2); return g;
   }
   const pts = [];
   for (let i = 0; i + 2 < s.length; i += 3) { const p = new THREE.Vector3(s[i], s[i+1], -s[i+2]); if (!pts.some(q => q.distanceTo(p) < .05)) pts.push(p); }
   try {
-    if (pts.length === 2) {           // a beam or pole: a thin bar between its two ends
+    if (pts.length === 2) { out.R = new THREE.Matrix4();           // a beam or pole: a thin bar between its two ends
       const d = pts[0].distanceTo(pts[1]); if (d < .3) return box();
       const g = new THREE.BoxGeometry(.22, .22, d), m = new THREE.Matrix4();
       const dir = pts[1].clone().sub(pts[0]).normalize(), up = Math.abs(dir.y) > .95 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
-      m.lookAt(pts[0], pts[1], up); g.applyMatrix4(m); g.translate(...pts[0].clone().add(pts[1]).multiplyScalar(.5).toArray()); return g;
+      m.lookAt(pts[0], pts[1], up); g.applyMatrix4(m); out.R = m.clone(); g.translate(...pts[0].clone().add(pts[1]).multiplyScalar(.5).toArray()); return g;
     }
     if (pts.length >= 3) {            // a wall, floor or roof: a slab through its corners
       const p0 = pts[0]; let a = pts[1], best = 0;
@@ -1504,7 +1504,7 @@ function partGeo(THREE, sh) {
       const th = Math.min(.45, Math.max(.08, mx - mn));
       const shape = new THREE.Shape(hull.map(([x, y]) => new THREE.Vector2(x, y)));
       const g = new THREE.ExtrudeGeometry(shape, { depth: th, bevelEnabled: false }); g.translate(0, 0, -th / 2);
-      g.applyMatrix4(new THREE.Matrix4().makeBasis(u, v, n)); g.translate(p0.x, p0.y, p0.z); return g;
+      g.applyMatrix4(new THREE.Matrix4().makeBasis(u, v, n)); out.R = new THREE.Matrix4().makeBasis(u, v, n); g.translate(p0.x, p0.y, p0.z); return g;
     }
   } catch (e) {}
   return box();
@@ -1950,62 +1950,124 @@ function integrityMaps() {
   return { hp, sup, est };
 }
 // The game works out support on the players' computers, so the server can't report it.
-// This redoes the game's rule on the website: pieces touching the ground get full support, and support
-// flows from piece to piece, losing a bit per step (more sideways than up/down) according to each material.
+// This redoes the game's own rule (WearNTear.UpdateSupport) on the website:
+// - a piece touching the ground gets its material's full support;
+// - otherwise it takes the best of what touching pieces give: S × (1 − loss × distance), where the loss is the
+//   piece's sideways loss, or (for pieces holding it from below) a mix of sideways and up/down loss by angle;
+// - two holders below on opposite sides can share the weight (their average counts).
+// Colour is the game's: full support = blue, then green → yellow → red as support drops to the minimum.
+function pieceBoxes() {
+  const d = LAST_RAW && LAST_RAW.build, THREE = B3.THREE; if (!d || !THREE) return null;
+  const P = d.parts, S = d.shapes, n = P.length, out = new Array(n), shapeBox = {};
+  for (let si = 0; si < S.length; si++) {
+    const sh = S[si]; if (!sh) continue; const o = {}; const g = partGeo(THREE, sh, o);
+    const inv = o.R.clone().invert(); g.applyMatrix4(inv); g.computeBoundingBox(); const bb = g.boundingBox; g.dispose();
+    const c = bb.getCenter(new THREE.Vector3()).applyMatrix4(o.R), h = bb.getSize(new THREE.Vector3()).multiplyScalar(.5);
+    const e = o.R.elements; shapeBox[si] = { c, h: [h.x, h.y, h.z], ax: [new THREE.Vector3(e[0], e[1], e[2]), new THREE.Vector3(e[4], e[5], e[6]), new THREE.Vector3(e[8], e[9], e[10])] };
+  }
+  const q = new THREE.Quaternion();
+  for (let i = 0; i < n; i++) {
+    const p = P[i], sb = shapeBox[p[0]]; if (!sb || NOT_BUILDING.test(S[p[0]].n)) continue;
+    if (p.length === 5) q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[4] * Math.PI / 180); else q.set(-p[4], -p[5], p[6], p[7]);
+    const c = sb.c.clone().applyQuaternion(q).add(new THREE.Vector3(p[1], p[2], -p[3]));
+    const ax = sb.ax.map(a => a.clone().applyQuaternion(q).normalize());
+    const ext = [0, 1, 2].map(k => Math.abs(ax[0].getComponent(k)) * sb.h[0] + Math.abs(ax[1].getComponent(k)) * sb.h[1] + Math.abs(ax[2].getComponent(k)) * sb.h[2]);
+    out[i] = { c, ax, h: sb.h, lo: [c.x - ext[0], c.y - ext[1], c.z - ext[2]], hi: [c.x + ext[0], c.y + ext[1], c.z + ext[2]] };
+  }
+  return out;
+}
+// do two oriented boxes touch (with a small gap allowed)?
+function obbTouch(A, B, m) {
+  const T = B.c.clone().sub(A.c), R = [], AR = [];
+  for (let i = 0; i < 3; i++) { R[i] = []; AR[i] = []; for (let j = 0; j < 3; j++) { R[i][j] = A.ax[i].dot(B.ax[j]); AR[i][j] = Math.abs(R[i][j]) + 1e-6; } }
+  const t = [T.dot(A.ax[0]), T.dot(A.ax[1]), T.dot(A.ax[2])], a = A.h.map(x => x + m), b = B.h.map(x => x + m);
+  for (let i = 0; i < 3; i++) if (Math.abs(t[i]) > a[i] + b[0] * AR[i][0] + b[1] * AR[i][1] + b[2] * AR[i][2]) return false;
+  for (let j = 0; j < 3; j++) if (Math.abs(t[0] * R[0][j] + t[1] * R[1][j] + t[2] * R[2][j]) > a[0] * AR[0][j] + a[1] * AR[1][j] + a[2] * AR[2][j] + b[j]) return false;
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+    const i1 = (i + 1) % 3, i2 = (i + 2) % 3, j1 = (j + 1) % 3, j2 = (j + 2) % 3;
+    const ra = a[i1] * AR[i2][j] + a[i2] * AR[i1][j], rb = b[j1] * AR[i][j2] + b[j2] * AR[i][j1];
+    if (Math.abs(t[i2] * R[i1][j] - t[i1] * R[i2][j]) > ra + rb) return false;
+  }
+  return true;
+}
+function closestOnBox(B, p) {   // the point of box B nearest to p
+  const d = p.clone().sub(B.c), r = B.c.clone();
+  for (let k = 0; k < 3; k++) r.addScaledVector(B.ax[k], Math.max(-B.h[k], Math.min(B.h[k], d.dot(B.ax[k]))));
+  return r;
+}
 function estimateSupport() {
-  const d = LAST_RAW && LAST_RAW.build; if (!d || !d.shapes.some(x => x.ms)) return null;
+  const d = LAST_RAW && LAST_RAW.build; if (!d || !B3.THREE || !d.shapes.some(x => x && x.ms)) return null;
   const sig = d.parts.length + ":" + JSON.stringify(d.parts[d.parts.length - 1]);
   if (B3.supEst && B3.supEst.sig === sig) return B3.supEst.map;
   const P = d.parts, S = d.shapes, n = P.length, gn = d.gn, gs = d.gs, G = d.ground, half = (gn - 1) / 2;
   const groundAt = (x, z) => { const fx = Math.max(0, Math.min(gn - 1.001, x / gs + half)), fz = Math.max(0, Math.min(gn - 1.001, z / gs + half)), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
     return (G[j * gn + i] * (1 - tx) + G[j * gn + i + 1] * tx) * (1 - tz) + (G[(j + 1) * gn + i] * (1 - tx) + G[(j + 1) * gn + i + 1] * tx) * tz; };
-  const box = new Array(n), cen = new Array(n);
-  for (let i = 0; i < n; i++) {
-    const p = P[i], sh = S[p[0]]; if (!sh || !sh.ms || NOT_BUILDING.test(sh.n)) continue;
-    const b = sh.b; let qx = 0, qy = 0, qz = 0, qw = 1;
-    if (p.length === 5) { const a = p[4] * Math.PI / 360; qy = Math.sin(a); qw = Math.cos(a); } else { qx = p[4]; qy = p[5]; qz = p[6]; qw = p[7]; }
-    const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
-    for (let k = 0; k < 8; k++) {
-      const vx = k & 1 ? b[3] : b[0], vy = k & 2 ? b[4] : b[1], vz = k & 4 ? b[5] : b[2];
-      // rotate by the quaternion (Valheim's own axes), then move to the piece's place
-      const tx = 2 * (qy * vz - qz * vy), ty = 2 * (qz * vx - qx * vz), tz = 2 * (qx * vy - qy * vx);
-      const r = [vx + qw * tx + (qy * tz - qz * ty) + p[1], vy + qw * ty + (qz * tx - qx * tz) + p[2], vz + qw * tz + (qx * ty - qy * tx) + p[3]];
-      for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], r[a]); hi[a] = Math.max(hi[a], r[a]); }
+  const box = pieceBoxes(); if (!box) return null;
+  const ms = i => S[P[i][0]].ms || [100, 10, .2, .125, 1];
+  // pieces near each other (2 m grid)
+  const cell = new Map(), key = (x, z) => x * 100003 + z, CS = 2;
+  for (let i = 0; i < n; i++) if (box[i]) { const B = box[i];
+    for (let x = Math.floor(B.lo[0] / CS); x <= Math.floor(B.hi[0] / CS); x++) for (let z = Math.floor(B.lo[2] / CS); z <= Math.floor(B.hi[2] / CS); z++) { const k = key(x, z); (cell.get(k) || cell.set(k, []).get(k)).push(i); } }
+  // who touches whom, and what each holder would give
+  const links = new Array(n), grounded = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (box[i]) {
+    const A = box[i], seen = new Set(), L = [];
+    // touching the ground? check the box's lowest corners against the terrain
+    for (let k = 0; k < 8 && !grounded[i]; k++) {
+      const v = A.c.clone(); for (let a = 0; a < 3; a++) v.addScaledVector(A.ax[a], (k >> a & 1 ? 1 : -1) * A.h[a]);
+      if (v.y <= groundAt(v.x, -v.z) + .1) grounded[i] = 1;
     }
-    box[i] = [lo, hi]; cen[i] = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+    for (let x = Math.floor(A.lo[0] / CS); x <= Math.floor(A.hi[0] / CS); x++) for (let z = Math.floor(A.lo[2] / CS); z <= Math.floor(A.hi[2] / CS); z++) for (const j of cell.get(key(x, z)) || []) {
+      if (j === i || seen.has(j)) continue; seen.add(j);
+      const B = box[j];
+      if (B.lo[0] > A.hi[0] + .1 || B.hi[0] < A.lo[0] - .1 || B.lo[1] > A.hi[1] + .1 || B.hi[1] < A.lo[1] - .1 || B.lo[2] > A.hi[2] + .1 || B.hi[2] < A.lo[2] - .1) continue;
+      if (ms(j)[4] === 0 || !obbTouch(A, B, .05)) continue;
+      const [, , hL, vL] = ms(i), dist = A.c.distanceTo(B.c) + .1;
+      let k = 1 - hL * dist, pv = null, off = null;          // what it gives as a sideways holder
+      const pt = closestOnBox(B, A.c);
+      if (pt.y < A.c.y + .05) {                              // it holds this piece from below
+        const dir = pt.clone().sub(A.c).normalize();
+        if (dir.y < 0) { const t = Math.acos(1 - Math.abs(dir.y)) / (Math.PI / 2); k = Math.max(k, 1 - (hL + (vL - hL) * t) * dist); }
+        pv = 1 - vL * dist; off = [pt.x - A.c.x, pt.z - A.c.z];
+      }
+      L.push([j, k, pv, off]);
+    }
+    links[i] = L;
   }
-  // pieces near each other (2 m grid on the ground plane)
-  const cell = new Map(), key = (x, z) => x + "," + z;
-  for (let i = 0; i < n; i++) if (box[i]) { const [lo, hi] = box[i];
-    for (let x = Math.floor(lo[0] / 2); x <= Math.floor(hi[0] / 2); x++) for (let z = Math.floor(lo[2] / 2); z <= Math.floor(hi[2] / 2); z++) { const k = key(x, z); (cell.get(k) || cell.set(k, []).get(k)).push(i); } }
-  const touch = (a, b) => { const A = box[a], B = box[b], m = .12; return A[0][0] - m <= B[1][0] && B[0][0] - m <= A[1][0] && A[0][1] - m <= B[1][1] && B[0][1] - m <= A[1][1] && A[0][2] - m <= B[1][2] && B[0][2] - m <= A[1][2]; };
-  const sup = new Float32Array(n).fill(-1), done = new Uint8Array(n), heap = [];
-  const push = i => { heap.push(i); let c = heap.length - 1; while (c > 0) { const pa = (c - 1) >> 1; if (sup[heap[pa]] >= sup[heap[c]]) break; [heap[pa], heap[c]] = [heap[c], heap[pa]]; c = pa; } };
-  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let c = 0; for (;;) { const l = 2 * c + 1, r = l + 1; let m = c; if (l < heap.length && sup[heap[l]] > sup[heap[m]]) m = l; if (r < heap.length && sup[heap[r]] > sup[heap[m]]) m = r; if (m === c) break; [heap[m], heap[c]] = [heap[c], heap[m]]; c = m; } } return top; };
-  for (let i = 0; i < n; i++) if (box[i] && box[i][0][1] <= groundAt(cen[i][0], cen[i][2]) + .25) { sup[i] = S[P[i][0]].ms[0]; push(i); }
-  while (heap.length) {
-    const i = pop(); if (done[i]) continue; done[i] = 1;
-    if (S[P[i][0]].ms[4] === 0) continue;            // this piece doesn't pass support on
-    const [lo, hi] = box[i], seen = new Set();
-    for (let x = Math.floor(lo[0] / 2); x <= Math.floor(hi[0] / 2); x++) for (let z = Math.floor(lo[2] / 2); z <= Math.floor(hi[2] / 2); z++) for (const j of cell.get(key(x, z)) || []) {
-      if (j === i || done[j] || seen.has(j)) continue; seen.add(j); if (!touch(i, j)) continue;
-      const m = S[P[j][0]].ms, dx = cen[j][0] - cen[i][0], dy = cen[j][1] - cen[i][1], dz = cen[j][2] - cen[i][2], dist = Math.hypot(dx, dy, dz) || 1;
-      const up = Math.abs(dy) / dist, loss = m[2] + (m[3] - m[2]) * up;   // ms = [max, min, sideways loss, up/down loss, passes on]
-      const cand = Math.min(m[0], sup[i]) - m[0] * loss;
-      if (cand > sup[j]) { sup[j] = cand; push(j); }
+  // settle: start from the ground and repeat until nothing changes
+  const sup = new Float32Array(n);
+  for (let i = 0; i < n; i++) if (box[i] && grounded[i]) sup[i] = ms(i)[0];
+  for (let pass = 0; pass < 400; pass++) {
+    let changed = false;
+    for (let i = 0; i < n; i++) {
+      if (!box[i] || grounded[i]) continue;
+      let best = 0; const below = [];
+      for (const [j, k, pv, off] of links[i]) { const Sj = sup[j]; if (Sj <= 0) continue; best = Math.max(best, Sj * k); if (pv !== null) below.push([Sj * pv, off]); }
+      for (let a = 0; a < below.length; a++) for (let b = a + 1; b < below.length; b++) {
+        const avg = (below[a][0] + below[b][0]) / 2; if (avg <= best) continue;
+        const u = below[a][1], v = below[b][1], lu = Math.hypot(u[0], u[1]), lv = Math.hypot(v[0], v[1]);
+        if (lu > 1e-4 && lv > 1e-4 && Math.acos(Math.max(-1, Math.min(1, (u[0] * v[0] + u[1] * v[1]) / (lu * lv)))) * 180 / Math.PI >= 100) best = avg;
+      }
+      const nv = Math.min(ms(i)[0], best);
+      if (Math.abs(nv - sup[i]) > .01) { sup[i] = nv; changed = true; }
     }
+    if (!changed) break;
   }
   const map = new Map();
-  for (let i = 0; i < n; i++) if (box[i]) { const m = S[P[i][0]].ms; map.set(i, sup[i] < 0 ? 0 : sup[i] >= m[0] - .01 ? 1 : Math.max(0, Math.min(.98, (sup[i] - m[1]) / Math.max(1, m[0] - m[1])))); }
+  for (let i = 0; i < n; i++) if (box[i]) { const [mx, mn] = ms(i), s2 = sup[i];
+    map.set(i, s2 >= mx - .001 ? -1 : Math.max(0, Math.min(1, (s2 - mn) / (mx * .5 - mn)))); }
   B3.supEst = { sig, map };
   return map;
 }
-const supColor = f => f >= .99 ? 0x3d7fe0 : f >= .5 ? 0x4ec25a : f >= .25 ? 0xe8c547 : 0xe0433a;
+const supColor = v => { if (v < 0) return 0x3d7fe0;
+  const lerp = (a, b, t) => { const ar = a >> 16, ag = a >> 8 & 255, ab = a & 255, br = b >> 16, bg = b >> 8 & 255, bb = b & 255;
+    return Math.round(ar + (br - ar) * t) << 16 | Math.round(ag + (bg - ag) * t) << 8 | Math.round(ab + (bb - ab) * t); };
+  return v < .5 ? lerp(0xe0433a, 0xe8c547, v * 2) : lerp(0xe8c547, 0x4ec25a, (v - .5) * 2); };
 function integrityText(mesh, k) {
   const i = mesh.userData.idx && mesh.userData.idx[k]; if (i == null) return "";
   const { hp, sup, est } = integrityMaps(), out = [];
   if (B3.integrity !== "sup" && hp.has(i)) out.push("health " + Math.round(hp.get(i) * 100) + "%");
-  if (B3.integrity !== "dmg" && sup.has(i)) out.push("support " + Math.round(sup.get(i) * 100) + "%" + (est ? " (est.)" : ""));
+  if (B3.integrity !== "dmg" && sup.has(i)) out.push((sup.get(i) < 0 ? "full support" : "support " + Math.round(sup.get(i) * 100) + "%") + (est ? " (est.)" : ""));
   return out.length ? " · " + out.join(" · ") : "";
 }
 function applyIntegrity() {
@@ -2027,8 +2089,8 @@ function applyIntegrity() {
   if (mode === "sup") {
     key.hidden = false;
     key.innerHTML = `<b style="font:800 14px var(--display)">Support${est ? " (estimated)" : ""}</b><br>` +
-      `<i style="background:#3d7fe0"></i>On the ground <i style="background:#4ec25a"></i>Strong <i style="background:#e8c547"></i>Weak <i style="background:#e0433a"></i>About to fall<br>` +
-      `<span style="color:#b9c3cc">${sup.size ? (est ? "Worked out from how the pieces touch; the game may differ a little." : "") : "Support colours need Wall Live 2.1.0 on the server."}</span>`;
+      `<i style="background:#3d7fe0"></i>Full <i style="background:#4ec25a"></i>Strong <i style="background:#e8c547"></i>Weak <i style="background:#e0433a"></i>About to fall<br>` +
+      `<span style="color:#b9c3cc">${sup.size ? (est ? "Worked out with the game's own support rule from how the pieces touch. Colours match the game's building colours; small differences are possible." : "") : "Support colours need Wall Live 2.1.0 on the server."}</span>`;
   } else if (mode === "dmg") {
     const v = [...hp.values()], worst = v.length ? Math.min(...v) : 1;
     key.hidden = false;
