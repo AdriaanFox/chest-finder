@@ -1301,7 +1301,7 @@ function skyChip(box, onToggle) {
   el.title = "Switch between the server's live sky and plain daylight";
   el.addEventListener("click", () => { SKY_DAYLIGHT = !SKY_DAYLIGHT; try { localStorage.setItem("skyDay", SKY_DAYLIGHT ? "1" : "0"); } catch (e) {} paint(); onToggle && onToggle(); });
   const paint = () => {
-    const f = skyFraction(), night = f < .23 || f > .77;
+    const f = skyFraction(), night = /night/.test(clock(f));
     el.innerHTML = SKY_DAYLIGHT ? `<b>☀ Daylight</b><span>tap for live sky</span>`
       : `<b>${night ? "☾" : "☀"} ${SERVER && SERVER.time != null ? clock(f) : "Live sky"}</b><span>${SERVER && SERVER.weather ? esc(weatherName(SERVER.weather)) : "waiting for the server"} · tap for daylight</span>`;
   };
@@ -1693,7 +1693,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-22-2305";
+const BUILD = "2026-10-23-2130";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
