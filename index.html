@@ -382,6 +382,7 @@ body.tv .tvbar{display:flex}
         <button class="tab" id="spinBtn" type="button" hidden>Spin</button>
         <button class="tab" id="walkBtn" type="button" hidden>🚶 Walk around</button>
         <button class="tab" id="spawnBtn" type="button" hidden>Spawn-proof check</button>
+        <button class="tab" id="intBtn" type="button" hidden>Integrity</button>
         <button class="tab" id="fullBtn" type="button" hidden>⛶ Full screen</button>
         <label class="rangebox" id="rangeBox" hidden>Range <input type="range" id="baseRange" min="20" max="150" step="5" value="100"> <b id="baseRangeV">100 m</b></label>
         <input id="xq" type="search" placeholder="X-ray: find an item…" autocomplete="off" hidden>
@@ -1487,7 +1488,7 @@ async function openBase(on) {
   $("#baseBtn").textContent = on ? "Close the 3D base" : "Show the base in 3D";
   $("#roofBtn").hidden = $("#spinBtn").hidden = $("#xq").hidden = !on;
   $("#walkBtn").hidden = !on || matchMedia("(pointer: coarse)").matches;
-  $("#spawnBtn").hidden = $("#fullBtn").hidden = $("#rangeBox").hidden = !on;
+  $("#spawnBtn").hidden = $("#fullBtn").hidden = $("#rangeBox").hidden = $("#intBtn").hidden = !on;
   if (!on) { if (B3.walk) stopWalk(); cancelAnimationFrame(B3.raf); if (B3.r) { B3.r.dispose(); $("#base3d").innerHTML = ""; B3.r = null; } return; }
   $("#base3d").innerHTML = `<p class="empty" style="padding:16px">Loading 3D…</p>`;
   try {
@@ -1548,6 +1549,7 @@ function buildBase(keepCam) {
     : `<i style="background:#c7291f"></i>Monsters can spawn · <i style="background:#3d8550"></i>Safe<br><span style="color:#b9c3cc">${total ? Math.round(open / total * 100) : 0}% of the ground within ${range} m is not spawn-proofed. Water and building tops not checked.</span>`;
   // pieces: one instanced mesh per kind
   const byShape = {}; for (const p of parts) (byShape[p[0]] = byShape[p[0]] || []).push(p);
+  const idxOf = new Map(data.parts.map((p, i) => [p, i]));
   const meshes = [], q = new THREE.Quaternion(), m4 = new THREE.Matrix4(), one = new THREE.Vector3(1, 1, 1), lights = [];
   for (const [si, list] of Object.entries(byShape)) {
     const sh = data.shapes[si]; if (!sh) continue;
@@ -1560,7 +1562,7 @@ function buildBase(keepCam) {
       m4.compose(new THREE.Vector3(p[1], p[2], -p[3]), q, one); im.setMatrixAt(k, m4);
       if (look.fire && lights.length < 8) lights.push(new THREE.Vector3(p[1], p[2] + 1, -p[3]));
     });
-    im.castShadow = !look.t; im.receiveShadow = true; im.userData = { name: sh.n, roof: /roof/.test(sh.n), fire: !!look.fire };
+    im.castShadow = !look.t; im.receiveShadow = true; im.userData = { name: sh.n, roof: /roof/.test(sh.n), fire: !!look.fire, idx: list.map(p => idxOf.get(p)) };
     scene.add(im); meshes.push(im);
   }
   const fireLights = lights.map(v => { const l = new THREE.PointLight(0xff8a3c, 0, 14, 2); l.position.copy(v); scene.add(l); return l; });
@@ -1588,7 +1590,7 @@ function buildBase(keepCam) {
     box.visible = false; box.renderOrder = 6; box.userData = { sign: c.sign }; scene.add(box); chests.push(box);
   }
   Object.assign(B3, { scene, cam, ctl, meshes, ground, chests, THREE, beam: null, renderer });
-  applyRoofs(); baseFocus(selected); baseXray(B3.xr);
+  applyRoofs(); baseFocus(selected); baseXray(B3.xr); applyIntegrity();
   // name of the piece under the mouse
   const ray = new THREE.Raycaster(), mv = new THREE.Vector2(), tip = $("#baseTip"); let lastMove = 0;
   renderer.domElement.addEventListener("pointermove", e => {
@@ -1602,7 +1604,7 @@ function buildBase(keepCam) {
       const top = L ? Object.entries(L.items).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => nameOf(c) + " " + fmt(n)).join(" · ") : "";
       tip.hidden = false; tip.innerHTML = `${esc(sign)}${top ? `<span style="display:block;font-weight:400;color:#c9d2da;font-size:12.5px">${esc(top)}</span>` : ""}`;
       tip.style.left = (e.clientX - rc.left) + "px"; tip.style.top = (e.clientY - rc.top) + "px"; renderer.domElement.style.cursor = "pointer";
-    } else if (hit && e.buttons === 0) { tip.hidden = false; tip.textContent = prettyPart(hit.object.userData.name); tip.style.left = (e.clientX - rc.left) + "px"; tip.style.top = (e.clientY - rc.top) + "px"; renderer.domElement.style.cursor = ""; }
+    } else if (hit && e.buttons === 0) { tip.hidden = false; tip.textContent = prettyPart(hit.object.userData.name) + integrityText(hit.object, hit.instanceId); tip.style.left = (e.clientX - rc.left) + "px"; tip.style.top = (e.clientY - rc.top) + "px"; renderer.domElement.style.cursor = ""; }
     else { tip.hidden = true; renderer.domElement.style.cursor = ""; }
   });
   // click a wall chest: show what's in it
@@ -1812,7 +1814,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-23-2310c";
+const BUILD = "2026-10-23-2355";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
@@ -1897,9 +1899,51 @@ try { B3.range = +localStorage.getItem("baseRange") || 100; } catch (e) { B3.ran
 $("#baseRange").value = B3.range; $("#baseRangeV").textContent = B3.range + " m";
 $("#baseRange").addEventListener("input", e => { $("#baseRangeV").textContent = e.target.value + " m"; });
 $("#baseRange").addEventListener("change", e => { B3.range = +e.target.value; try { localStorage.setItem("baseRange", B3.range); } catch (er) {} if (B3.r && !B3.walk) buildBase(false); });
-$("#spawnBtn").addEventListener("click", () => { B3.spawn = !B3.spawn; $("#spawnBtn").classList.toggle("on", B3.spawn); if (B3.r && !B3.walk) buildBase(true); });
+$("#spawnBtn").addEventListener("click", () => { B3.spawn = !B3.spawn; if (B3.spawn && B3.integrity) { B3.integrity = false; $("#intBtn").classList.remove("on"); } $("#spawnBtn").classList.toggle("on", B3.spawn); if (B3.r && !B3.walk) buildBase(true); });
 $("#fullBtn").addEventListener("click", () => { const el = $("#baseBox"); if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen(); });
 document.addEventListener("fullscreenchange", () => setTimeout(() => window.dispatchEvent(new Event("resize")), 100));
+
+
+// ---------- integrity: support (the game's blue/green/yellow/red) and damage for every piece ----------
+function integrityMaps() {
+  const d = LAST_RAW && LAST_RAW.build, hp = new Map(), sup = new Map();
+  for (const [i, f] of (d && d.dmg) || []) hp.set(i, f);
+  for (const [i, f] of (d && d.sup) || []) sup.set(i, f);
+  return { hp, sup };
+}
+const supColor = f => f >= .99 ? 0x3d7fe0 : f >= .5 ? 0x4ec25a : f >= .25 ? 0xe8c547 : 0xe0433a;
+function integrityText(mesh, k) {
+  const i = mesh.userData.idx && mesh.userData.idx[k]; if (i == null) return "";
+  const { hp, sup } = integrityMaps(), out = [];
+  if (hp.has(i)) out.push("health " + Math.round(hp.get(i) * 100) + "%");
+  if (sup.has(i)) out.push("support " + Math.round(sup.get(i) * 100) + "%");
+  return out.length ? " · " + out.join(" · ") : "";
+}
+function applyIntegrity() {
+  if (!B3.meshes || !B3.THREE) return;
+  const THREE = B3.THREE, on = !!B3.integrity, { hp, sup } = integrityMaps(), c = new THREE.Color();
+  for (const m of B3.meshes) {
+    const mt = m.material; if (mt.userData.col === undefined) mt.userData.col = mt.color.getHex();
+    if (!on) { if (m.instanceColor) { m.instanceColor = null; mt.color.setHex(mt.userData.col); mt.needsUpdate = true; } continue; }
+    mt.color.setHex(0xffffff);
+    m.userData.idx.forEach((i, k) => {
+      let col = sup.has(i) ? supColor(sup.get(i)) : 0x8d8a86;          // grey: support unknown (nobody near when scanned)
+      if (hp.has(i)) { const f = hp.get(i); col = f < .5 ? 0xff2a2a : f < .85 ? 0xff8a2a : col; }
+      m.setColorAt(k, c.setHex(col));
+    });
+    m.instanceColor.needsUpdate = true; mt.needsUpdate = true;
+  }
+  const key = $("#spawnKey");
+  if (on) {
+    const dmgList = [...hp.values()], worst = dmgList.length ? Math.min(...dmgList) : 1;
+    key.hidden = false;
+    key.innerHTML = `<b style="font:800 14px var(--display)">Integrity</b><br>` +
+      `<i style="background:#3d7fe0"></i>On the ground <i style="background:#4ec25a"></i>Strong <i style="background:#e8c547"></i>Weak <i style="background:#e0433a"></i>About to fall<br>` +
+      `<i style="background:#ff8a2a"></i>Damaged <i style="background:#ff2a2a"></i>Badly damaged<br>` +
+      `<span style="color:#b9c3cc">${dmgList.length ? `${dmgList.length} damaged piece${dmgList.length === 1 ? "" : "s"}, worst at ${Math.round(worst * 100)}% health.` : "No damaged pieces."} ${sup.size ? "" : "Support shows once someone is at the base when the server scans (every 10 min)."}</span>`;
+  } else if (!B3.spawn) key.hidden = true;
+}
+$("#intBtn").addEventListener("click", () => { B3.integrity = !B3.integrity; $("#intBtn").classList.toggle("on", B3.integrity); if (B3.integrity && B3.spawn) { B3.spawn = false; $("#spawnBtn").classList.remove("on"); if (B3.r) buildBase(true); } applyIntegrity(); });
 
 // ---------- X-ray: chests holding what you searched for glow through the walls ----------
 function baseXray(signs) {
