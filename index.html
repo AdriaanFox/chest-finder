@@ -166,7 +166,7 @@ body.tv .tvbar{display:flex}
 .basebar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .basebox{position:relative;margin-top:12px;height:min(70vh,600px);border:1px solid var(--wood-line);border-radius:14px;overflow:hidden;background:#0a1016;touch-action:none}
 .basetip{position:absolute;z-index:4;pointer-events:none;padding:4px 10px;border-radius:8px;background:rgba(10,14,20,.8);color:#f3efe6;font:700 14px var(--body);transform:translate(-50%,-140%)}
-.basebar .tab.on{border-color:var(--ember);color:var(--ember)}
+.basebar .tab.on{background:rgba(242,169,59,.12);border-color:var(--ember);color:var(--ember)}
 .hpick{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
 .hsel{display:flex;flex-wrap:wrap;gap:8px}
 .hchip{display:inline-flex;align-items:center;gap:7px;padding:4px 6px 4px 11px;border:1px solid var(--line);border-radius:999px;background:var(--bg2);font-size:15px}
@@ -234,6 +234,14 @@ body.tv .tvbar{display:flex}
 #raidFlash div small{display:block;font:700 clamp(16px,3vw,26px) var(--body);letter-spacing:0;margin-top:10px;text-shadow:0 2px 8px #000}
 @keyframes raidin{0%{opacity:0}6%{opacity:1}12%{opacity:.55}18%{opacity:1}24%{opacity:.6}30%{opacity:1}80%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){#raidFlash,.raidbar{animation:none}}
+.rangebox{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:14.5px}
+.rangebox[hidden]{display:none} .rangebox input{accent-color:var(--ember);width:140px} .rangebox b{color:var(--fg);min-width:52px;font-variant-numeric:tabular-nums}
+.spawnkey{position:absolute;left:10px;top:10px;z-index:4;max-width:min(300px,calc(100% - 20px));background:rgba(10,14,20,.82);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:8px 11px;font-size:13.5px;color:#e8edf2}
+.spawnkey i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.basebox:fullscreen{height:100vh;border-radius:0}
+#sq{font:inherit;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg2);color:var(--fg);width:100%;box-sizing:border-box}
+#sq:focus{outline:none;border-color:var(--ember)}
+.slist{max-height:220px} .slist .prow b{color:#ffd36b}
 .mapbox{position:relative;border:1px solid var(--wood-line);border-radius:14px;overflow:hidden;background:#0a1016;touch-action:none;height:min(72vh,640px)}
 #map{display:block;width:100%;height:100%;cursor:grab}
 #map.drag{cursor:grabbing}
@@ -341,6 +349,9 @@ body.tv .tvbar{display:flex}
         <p class="label" style="margin:0">PORTALS <span id="pcount"></span></p>
         <input id="pq" type="search" placeholder="Find a portal" autocomplete="off">
         <div class="plist" id="plist"><p class="empty">Waiting for the server…</p></div>
+        <p class="label" style="margin:10px 0 0">SIGNS <span id="scount"></span></p>
+        <input id="sq" type="search" placeholder="Find a sign…" autocomplete="off">
+        <div class="plist slist" id="slist"></div>
       </div>
     </div>
   </section>
@@ -354,11 +365,14 @@ body.tv .tvbar{display:flex}
         <button class="tab" id="roofBtn" type="button" hidden>Hide roofs</button>
         <button class="tab" id="spinBtn" type="button" hidden>Spin</button>
         <button class="tab" id="walkBtn" type="button" hidden>🚶 Walk around</button>
+        <button class="tab" id="spawnBtn" type="button" hidden>Spawn-proof check</button>
+        <button class="tab" id="fullBtn" type="button" hidden>⛶ Full screen</button>
+        <label class="rangebox" id="rangeBox" hidden>Range <input type="range" id="baseRange" min="20" max="150" step="5" value="60"> <b id="baseRangeV">60 m</b></label>
         <input id="xq" type="search" placeholder="X-ray: find an item…" autocomplete="off" hidden>
         <span class="note" id="baseInfo">Waiting for the server…</span>
       </div>
       <div class="basebox" id="baseBox" hidden><div id="base3d" style="position:absolute;inset:0"></div><div class="basetip" id="baseTip" hidden></div><div class="basecard" id="baseCard" hidden></div>
-        <div class="walkmsg" id="walkMsg" hidden></div><div class="cross" id="cross" hidden></div>
+        <div class="walkmsg" id="walkMsg" hidden></div><div class="spawnkey" id="spawnKey" hidden></div><div class="cross" id="cross" hidden></div>
         <span class="maphint">Drag to turn · right-drag to move · scroll or pinch to zoom</span></div>
     </div>
   </section>
@@ -637,48 +651,21 @@ function totalsOf(w) {
   }
   return { per, bySign };
 }
+// "What changed" now uses the hourly totals the server keeps (no GitHub lookups, so it's instant and never rate-limited)
 async function drawChanges() {
-  const el = $("#chg");
-  el.innerHTML = `<p class="empty">Looking back ${chgHours === 1 ? "an hour" : chgHours + " hours"}…</p>`;
-  try {
-    const target = Date.now() - chgHours * 3600000;
-    let pick = null, oldest = null;
-    for (let page = 1; page <= 8 && !pick; page++) {
-      const r = await fetch(`${API}/commits?per_page=100&page=${page}`, { cache: "no-store" });
-      if (r.status === 403 || r.status === 429) throw new Error("limit");
-      if (!r.ok) throw new Error("fail");
-      const list = await r.json(); if (!list.length) break;
-      for (const c of list) { oldest = c; if (new Date(c.committed_at).getTime() <= target) { pick = c; break; } }
-      if (list.length < 100) break;
-    }
-    pick = pick || oldest;
-    if (!pick) { el.innerHTML = `<p class="empty">No history yet.</p>`; return; }
-    let then = revCache[pick.version];
-    if (!then) {
-      const r = await fetch(`${API}/${pick.version}`);
-      if (r.status === 403 || r.status === 429) throw new Error("limit");
-      const g = await r.json(); then = revCache[pick.version] = JSON.parse(g.files["wall.json"].content);
-    }
-    const nowW = LAST_RAW; if (!nowW) { el.innerHTML = `<p class="empty">Waiting for the live count…</p>`; return; }
-    const a = totalsOf(then), b = totalsOf(nowW);
-    const codes = new Set([...Object.keys(a.per), ...Object.keys(b.per)]);
-    const diff = [...codes].map(c => ({ c, d: (b.per[c] || 0) - (a.per[c] || 0) })).filter(x => x.d !== 0);
-    const where = (c, sign) => sign;
-    const signsFor = c => Object.keys(Object.assign({}, a.bySign, b.bySign)).filter(k => k.startsWith(c + "|"))
-      .map(k => [k.split("|")[1], (b.bySign[k] || 0) - (a.bySign[k] || 0)]).filter(x => x[1] !== 0);
-    const since = new Date(pick.committed_at);
-    const row = x => `<div class="row"><span class="${x.d > 0 ? "plus" : "minus"}">${x.d > 0 ? "+" : "−"}${fmt(Math.abs(x.d))}</span><b>${esc(nameOf(x.c))}</b>${signsFor(x.c).slice(0,2).map(([s]) => signHtml(s)).join("")}</div>`;
-    const added = diff.filter(x => x.d > 0).sort((p,q) => q.d - p.d), taken = diff.filter(x => x.d < 0).sort((p,q) => p.d - q.d);
-    // items that only moved between chests show as 0 overall; list moves separately
-    let moved = 0; for (const k of Object.keys(Object.assign({}, a.bySign, b.bySign))) { const c = k.split("|")[0]; if (!diff.find(x => x.c === c) && (b.bySign[k]||0) !== (a.bySign[k]||0)) moved++; }
-    el.innerHTML = `<p class="note">Compared with ${since.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}${since.toDateString() !== new Date().toDateString() ? " on " + since.toLocaleDateString() : ""}. Totals on the wall only; it can't tell who did it.</p>
-      <div class="chg"><div><h3>Put in</h3>${added.length ? added.slice(0,25).map(row).join("") : `<p class="empty">Nothing.</p>`}</div>
-      <div><h3>Taken out</h3>${taken.length ? taken.slice(0,25).map(row).join("") : `<p class="empty">Nothing.</p>`}</div></div>
-      ${moved ? `<p class="note">${moved} other changes were items moved between chests.</p>` : ""}`;
-  } catch (e) {
-    el.innerHTML = e.message === "limit" ? `<p class="empty">GitHub only allows a limited number of lookups per hour. Try again in a little while.</p>`
-      : `<p class="empty">Couldn't load the history right now.</p>`;
-  }
+  const el = $("#chg"), d = histData();
+  if (!d || d.t.length < 2) { el.innerHTML = `<p class="empty">${LAST_RAW ? "Needs a couple of hours of history from the server first." : "Waiting for the live count…"}</p>`; return; }
+  const last = d.t.length - 1, target = d.t[last] - chgHours * 3600000;
+  let k = 0; d.t.forEach((t, j) => { if (t <= target) k = j; });
+  const since = new Date(d.t[k]);
+  const diff = Object.entries(d.items).map(([c, a]) => ({ c, d: a[last] - a[k] })).filter(x => x.d !== 0);
+  const where = c => LIVE ? Object.entries(LIVE).filter(([, L]) => L.items[c]).sort((p, q) => q[1].items[c] - p[1].items[c]).slice(0, 2).map(([s2]) => signHtml(s2)).join("") : "";
+  const row = x => `<div class="row"><span class="${x.d > 0 ? "plus" : "minus"}">${x.d > 0 ? "+" : "−"}${fmt(Math.abs(x.d))}</span><b>${esc(nameOf(x.c))}</b>${where(x.c)}</div>`;
+  const added = diff.filter(x => x.d > 0).sort((p, q) => q.d - p.d), taken = diff.filter(x => x.d < 0).sort((p, q) => p.d - q.d);
+  const short = d.t[0] > target + 1800000;
+  el.innerHTML = `<p class="note">Compared with ${since.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}${since.toDateString() !== new Date().toDateString() ? " on " + since.toLocaleDateString() : ""}${short ? " (history doesn't go back further yet)" : ""}. Totals on the wall only; it can't tell who did it.</p>
+    <div class="chg"><div><h3>Put in</h3>${added.length ? added.slice(0, 25).map(row).join("") : `<p class="empty">Nothing.</p>`}</div>
+    <div><h3>Taken out</h3>${taken.length ? taken.slice(0, 25).map(row).join("") : `<p class="empty">Nothing.</p>`}</div></div>`;
 }
 
 // ---------- craft check (saved in this browser) ----------
@@ -878,6 +865,7 @@ function drawMap() {
     if (p.t && M.s > (Math.min(W,H)/N) * 4) { mctx.font = `600 ${11*d}px "Alegreya Sans", sans-serif`; label(pinName(p.t), x, y - 7*d, "#f1ead9"); mctx.font = `700 ${fs}px "Alegreya Sans", sans-serif`; }
     mctx.globalAlpha = 1;
   }
+  drawSignMarks(S, W, H, d);
   // Jotun invasions: shown like the game shows them, even under the fog
   for (const v of (map && map.invasions) || []) {
     const [x, y] = S(v.x, v.z); if (x < -40 || y < -40 || x > W + 40 || y > H + 40) continue;
@@ -894,6 +882,44 @@ function drawMap() {
     mctx.font = `700 ${12 * d}px "Alegreya Sans", sans-serif`;
   }
   function label(t, x, y, c) { mctx.lineWidth = 3*d; mctx.strokeStyle = "rgba(0,0,0,.8)"; mctx.strokeText(t, x, y); mctx.fillStyle = c; mctx.fillText(t, x, y); }
+}
+
+
+// ---------- sign search on the map (every sign in the world, sent by the server) ----------
+function signMatches() {
+  const q = norm($("#sq").value), all = (LAST_RAW && LAST_RAW.map && LAST_RAW.map.signs) || [];
+  if (!q) return [];
+  const words = q.split(" ");
+  return all.filter(s2 => { const t = norm(s2.t); return words.every(w => t.includes(w)); });
+}
+function drawSignList() {
+  const all = (LAST_RAW && LAST_RAW.map && LAST_RAW.map.signs);
+  $("#scount").textContent = all && all.length ? "· " + all.length : "";
+  const el = $("#slist");
+  if (!all) { el.innerHTML = `<p class="empty">Sign search arrives with Wall Live 1.6.7 on the server.</p>`; return; }
+  const q = $("#sq").value.trim(); if (!q) { el.innerHTML = ""; return; }
+  const b = (LAST_RAW.map.base) || { x: 335, z: -465 }, rows = signMatches().slice(0, 60);
+  el.innerHTML = rows.length ? rows.map(s2 => { const dist = Math.hypot(s2.x - b.x, s2.z - b.z), on = M.sg && M.sg.x === s2.x && M.sg.z === s2.z;
+    return `<div class="prow ${on ? "on" : ""}" data-sx="${s2.x}" data-sz="${s2.z}"><b>${esc(s2.t)}</b><span>${dist < 1000 ? Math.round(dist) + " m" : (dist / 1000).toFixed(1) + " km"}</span></div>`; }).join("")
+    : `<p class="empty">No sign says that.</p>`;
+}
+$("#sq").addEventListener("input", () => { M.sg = null; drawSignList(); if (!M.view3d) drawMap(); });
+$("#slist").addEventListener("click", e => { const r = e.target.closest("[data-sx]"); if (!r) return;
+  const x = +r.dataset.sx, z = +r.dataset.sz, s2 = signMatches().find(q => q.x === x && q.z === z);
+  M.sg = { x, z, t: s2 ? s2.t : "" }; drawSignList();
+  if (M.view3d) { fly3D({ x, z, t: M.sg.t }); return; }
+  fitView("pt", x, z, 14); drawMap(); });
+function drawSignMarks(S, W, H, d) {
+  const hits = signMatches(); if (!hits.length && !M.sg) return;
+  for (const s2 of hits.slice(0, 400)) {
+    const [x, y] = S(s2.x, s2.z); if (x < -20 || y < -20 || x > W + 20 || y > H + 20) continue;
+    const on = M.sg && M.sg.x === s2.x && M.sg.z === s2.z, r = (on ? 7 : 4.5) * d;
+    mctx.save(); mctx.shadowColor = "#ffcf4a"; mctx.shadowBlur = (on ? 18 : 8) * d;
+    mctx.fillStyle = on ? "#fff3c4" : "#ffcf4a"; mctx.strokeStyle = "#2a1d05"; mctx.lineWidth = 2 * d;
+    mctx.fillRect(x - r, y - r * .7, r * 2, r * 1.4); mctx.strokeRect(x - r, y - r * .7, r * 2, r * 1.4); mctx.restore();
+    if (on || hits.length <= 12) { mctx.font = `700 ${12 * d}px "Alegreya Sans", sans-serif`; mctx.textAlign = "center"; mctx.lineWidth = 3 * d; mctx.strokeStyle = "rgba(0,0,0,.85)";
+      mctx.strokeText(s2.t, x, y - r - 5 * d); mctx.fillStyle = on ? "#ffffff" : "#ffe39a"; mctx.fillText(s2.t, x, y - r - 5 * d); }
+  }
 }
 
 // ---------- portal network: the map fades away and the portals become a subway map ----------
@@ -1404,7 +1430,7 @@ function drawBaseSec() {
   const b = LAST_RAW && LAST_RAW.build, info = $("#baseInfo"), btn = $("#baseBtn");
   if (!b || !b.parts) { btn.disabled = true; info.textContent = LAST_RAW ? "The base model arrives once the server runs Wall Live 1.6." : "Waiting for the server…"; return; }
   btn.disabled = false;
-  info.textContent = `${fmt(b.parts.filter(p => b.shapes[p[0]] && !NOT_BUILDING.test(b.shapes[p[0]].n)).length)} building pieces within ${b.r} m of the storage wall · updates every 10 minutes`;
+  info.textContent = `${fmt(b.parts.filter(p => b.shapes[p[0]] && !NOT_BUILDING.test(b.shapes[p[0]].n)).length)} building pieces within ${b.r} m of the storage wall · updates every 10 minutes`; $("#baseRange").max = b.r;
   const sig = b.parts.length + ":" + b.shapes.length + ":" + JSON.stringify(b.parts[b.parts.length - 1] || "");
   if (B3.r && B3.sig !== sig) buildBase(true);
   B3.sig = sig;
@@ -1414,6 +1440,7 @@ async function openBase(on) {
   $("#baseBtn").textContent = on ? "Close the 3D base" : "Show the base in 3D";
   $("#roofBtn").hidden = $("#spinBtn").hidden = $("#xq").hidden = !on;
   $("#walkBtn").hidden = !on || matchMedia("(pointer: coarse)").matches;
+  $("#spawnBtn").hidden = $("#fullBtn").hidden = $("#rangeBox").hidden = !on;
   if (!on) { if (B3.walk) stopWalk(); cancelAnimationFrame(B3.raf); if (B3.r) { B3.r.dispose(); $("#base3d").innerHTML = ""; B3.r = null; } return; }
   $("#base3d").innerHTML = `<p class="empty" style="padding:16px">Loading 3D…</p>`;
   try {
@@ -1438,21 +1465,41 @@ function buildBase(keepCam) {
   sky.sun.shadow.mapSize.set(2048, 2048); sky.sun.shadow.bias = -.0006;
   const paint = skyChip(box, null); let chipT = 0;
   // ground
-  const gn = data.gn, gs = data.gs, size = (gn - 1) * gs, G = data.ground;
+  // how far around the storage wall to show (the server sends up to data.r metres)
+  const range = Math.min(data.r, B3.range || 60);
+  const parts = data.parts.filter(p => data.shapes[p[0]] && !NOT_BUILDING.test(data.shapes[p[0]].n) && Math.hypot(p[1], p[3]) <= range);
+  // ground: only the square that covers the range
+  const gnA = data.gn, gs = data.gs, G = data.ground, half = (gnA - 1) / 2, k = Math.min(half, Math.ceil((range + 6) / gs));
+  const c0 = half - k, gn = 2 * k + 1, size = (gn - 1) * gs;
+  const gAt = (c, r) => G[(c0 + (gn - 1 - r)) * gnA + (c0 + c)];
   const g = new THREE.PlaneGeometry(size, size, gn - 1, gn - 1); g.rotateX(-Math.PI / 2);
   const pos = g.attributes.position, col = new Float32Array(pos.count * 3), water = 30 - data.y0;
+  // places where monsters can't spawn: within the "player base" radius of workbenches, fires and so on
+  const blockers = parts.filter(p => data.shapes[p[0]].pb).map(p => [p[1], p[2], -p[3], data.shapes[p[0]].pb]);
+  const spawnOn = !!B3.spawn && blockers.length > 0; let open = 0, total = 0;
   for (let i = 0; i < pos.count; i++) {
-    const c = i % gn, r = Math.floor(i / gn), h = G[(gn - 1 - r) * gn + c]; pos.setY(i, h);
+    const c = i % gn, r = Math.floor(i / gn), h = gAt(c, r); pos.setY(i, h);
     const nse = (Math.sin(c * 1.7 + r * .9) + Math.sin(c * .43 - r * 1.3)) * .03, under = h < water + .3;
-    const base = under ? [.55, .5, .38] : [.33 + nse, .45 + nse, .22];
+    let base = under ? [.55, .5, .38] : [.33 + nse, .45 + nse, .22];
+    if (spawnOn && !under) {
+      const x = pos.getX(i), z = pos.getZ(i);
+      if (Math.hypot(x, z) <= range) {
+        total++;
+        const safe = blockers.some(b => (b[0] - x) ** 2 + (b[1] - h) ** 2 + (b[2] - z) ** 2 <= b[3] * b[3]);
+        if (!safe) { open++; base = [.78 + nse, .16, .12]; } else base = [.24 + nse, .52 + nse, .3];
+      }
+    }
     col[i*3] = base[0]; col[i*3+1] = base[1]; col[i*3+2] = base[2];
   }
   g.setAttribute("color", new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
   const ground = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true })); ground.receiveShadow = true; scene.add(ground);
   if (G.some(h => h < water)) { const sea = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshLambertMaterial({ color: 0x2d6a8e, transparent: true, opacity: .7 }));
     sea.rotation.x = -Math.PI / 2; sea.position.y = water; scene.add(sea); }
+  const key = $("#spawnKey"); key.hidden = !B3.spawn;
+  if (B3.spawn) key.innerHTML = !blockers.length
+    ? "The spawn-proof check needs Wall Live 1.6.7 on the server."
+    : `<i style="background:#c7291f"></i>Monsters can spawn · <i style="background:#3d8550"></i>Safe<br><span style="color:#b9c3cc">${total ? Math.round(open / total * 100) : 0}% of the ground within ${range} m is not spawn-proofed. Water and building tops not checked.</span>`;
   // pieces: one instanced mesh per kind
-  const parts = data.parts.filter(p => data.shapes[p[0]] && !NOT_BUILDING.test(data.shapes[p[0]].n));
   const byShape = {}; for (const p of parts) (byShape[p[0]] = byShape[p[0]] || []).push(p);
   const meshes = [], q = new THREE.Quaternion(), m4 = new THREE.Matrix4(), one = new THREE.Vector3(1, 1, 1), lights = [];
   for (const [si, list] of Object.entries(byShape)) {
@@ -1474,8 +1521,8 @@ function buildBase(keepCam) {
   const ctr = new THREE.Vector3(); parts.forEach(p => ctr.add(new THREE.Vector3(p[1], p[2], -p[3]))); if (parts.length) ctr.multiplyScalar(1 / parts.length);
   const ds = parts.map(p => Math.hypot(p[1] - ctr.x, -p[3] - ctr.z)).sort((a, b) => a - b), spread = Math.max(15, ds[Math.floor(ds.length * .9)] || 20);
   const ctl = new THREE.OrbitControls(cam, renderer.domElement);
-  if (old) { cam.position.copy(old.p); ctl.target.copy(old.t); } else { ctl.target.copy(ctr); cam.position.set(ctr.x + spread * 1.3, ctr.y + spread * 1.15, ctr.z + spread * 1.6); }
-  ctl.enableDamping = true; ctl.maxPolarAngle = Math.PI * .49; ctl.minDistance = 4; ctl.maxDistance = 220;
+  if (old) { cam.position.copy(old.p); ctl.target.copy(old.t); } else { ctl.target.copy(ctr); const f = Math.max(spread, range * .7); cam.position.set(ctr.x + f * 1.1, ctr.y + f * 1.0, ctr.z + f * 1.35); }
+  ctl.enableDamping = true; ctl.maxPolarAngle = Math.PI * .49; ctl.minDistance = 4; ctl.maxDistance = 520;
   ctl.autoRotate = B3.spin !== false; ctl.autoRotateSpeed = .5;
   ctl.addEventListener("start", () => { if (ctl.autoRotate) { ctl.autoRotate = false; B3.spin = false; $("#spinBtn").classList.remove("on"); } });
   $("#spinBtn").classList.toggle("on", ctl.autoRotate);
@@ -1718,7 +1765,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-23-2215";
+const BUILD = "2026-10-23-2250";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
@@ -1741,6 +1788,16 @@ function toast(e) {
   while (host.children.length > 4) host.firstChild.remove();
 }
 
+
+
+// ---------- base view: range slider, spawn-proof check, full screen ----------
+try { B3.range = +localStorage.getItem("baseRange") || 60; } catch (e) { B3.range = 60; }
+$("#baseRange").value = B3.range; $("#baseRangeV").textContent = B3.range + " m";
+$("#baseRange").addEventListener("input", e => { $("#baseRangeV").textContent = e.target.value + " m"; });
+$("#baseRange").addEventListener("change", e => { B3.range = +e.target.value; try { localStorage.setItem("baseRange", B3.range); } catch (er) {} if (B3.r && !B3.walk) buildBase(false); });
+$("#spawnBtn").addEventListener("click", () => { B3.spawn = !B3.spawn; $("#spawnBtn").classList.toggle("on", B3.spawn); if (B3.r && !B3.walk) buildBase(true); });
+$("#fullBtn").addEventListener("click", () => { const el = $("#baseBox"); if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen(); });
+document.addEventListener("fullscreenchange", () => setTimeout(() => window.dispatchEvent(new Event("resize")), 100));
 
 // ---------- X-ray: chests holding what you searched for glow through the walls ----------
 function baseXray(signs) {
@@ -1926,7 +1983,7 @@ function stepFx(now) {
   }
 }
 
-function mapRefresh() { buildFog(); if (!M.tried) loadMapPicture(); else if (!M.view3d) drawMap(); drawPortals(); loop(); }
+function mapRefresh() { drawSignList(); buildFog(); if (!M.tried) loadMapPicture(); else if (!M.view3d) drawMap(); drawPortals(); loop(); }
 
 function highlight(signs, sel) {
   const any = signs && signs.size;
@@ -1990,7 +2047,7 @@ function search(q) {
 function rerender() {
   drawStats(); drawServer(); drawWall(); drawFeed(); drawRaidBar(); drawTodos(); drawBaseSec(); drawHist(); drawCats(); drawLists(); drawCraft(); drawPins(); tvTick(); mapRefresh();
   if (selected) showChest(selected); search($("#q").value);
-  if (LIVE && !chgLoaded) { chgLoaded = true; drawChanges(); }
+  if (LIVE) drawChanges();
 }
 
 // ---------- events ----------
@@ -2043,7 +2100,6 @@ load();
 setInterval(() => { if (!document.hidden) load(); }, 30000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
 // "What changed" refreshes itself every 6 minutes (GitHub limits how often a browser may ask)
-setInterval(() => { if (chgLoaded && !document.hidden) drawChanges(); }, 360000);
 setInterval(showStatus, 30000);
 </script>
 </body>
