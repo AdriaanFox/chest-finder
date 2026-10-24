@@ -271,7 +271,8 @@ body.tv .tvbar{display:flex}
 .basebox:fullscreen{height:100vh;border-radius:0}
 #sq{font:inherit;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg2);color:var(--fg);width:100%;box-sizing:border-box}
 #sq:focus{outline:none;border-color:var(--ember)}
-.slist .prow b{color:#ffd36b}
+.slist .pinrow b i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:1px;border:1px solid #111}.pinrow.done b{opacity:.55}.pinrow small{font:600 11px var(--body);color:var(--muted)}
+.prow b{color:#ffd36b}
 .ptabs{display:flex;gap:6px} .ptab{flex:1;font:800 13px var(--display);letter-spacing:.14em;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:6px 8px;cursor:pointer}
 .ptab.on{color:#111;background:var(--ember);border-color:var(--ember)} .ptab:hover{border-color:var(--ember)}
 .ppane{display:flex;flex-direction:column;gap:8px;min-height:0;flex:1} .ppane[hidden]{display:none}
@@ -303,6 +304,7 @@ body.tv .tvbar{display:flex}
 .prow{display:flex;justify-content:space-between;gap:8px;align-items:baseline;padding:7px 4px;border-top:1px dotted var(--line);cursor:pointer;border-radius:6px}
 .prow:hover,.prow.on{background:var(--bg2)}
 .prow b{font:800 15px var(--display);letter-spacing:.03em;color:#d9a6ff;min-width:0;overflow-wrap:anywhere}
+.pinrow b{color:var(--fg)}
 .prow span{color:var(--muted);font-size:13.5px;white-space:nowrap}
 .mlegend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:13.5px;color:var(--muted)}
 .mlegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
@@ -391,10 +393,10 @@ body.tv .tvbar{display:flex}
         <div class="mlegend" id="mlegend"></div>
       </div>
       <div class="portals">
-        <div class="ptabs" role="tablist"><button class="ptab on" type="button" data-pt="p" role="tab">PORTALS <span id="pcount"></span></button><button class="ptab" type="button" data-pt="s" role="tab">SIGNS <span id="scount"></span></button></div>
+        <div class="ptabs" role="tablist"><button class="ptab on" type="button" data-pt="p" role="tab">PORTALS <span id="pcount"></span></button><button class="ptab" type="button" data-pt="s" role="tab">PINS <span id="scount"></span></button></div>
         <div class="ppane" id="paneP"><input id="pq" type="search" placeholder="Find a portal" autocomplete="off">
           <div class="plist" id="plist"><p class="empty">Waiting for the server…</p></div></div>
-        <div class="ppane" id="paneS" hidden><input id="sq" type="search" placeholder="Find a sign (e.g. iron, crypt)…" autocomplete="off">
+        <div class="ppane" id="paneS" hidden><input id="sq" type="search" placeholder="Find a pin (e.g. copper, crypt)…" autocomplete="off">
           <div class="plist slist" id="slist"></div></div>
       </div>
     </div>
@@ -974,26 +976,32 @@ function drawMap() {
 
 // Jotun invasions from the server, minus normal Deep North creatures/spawners an older mod version mistook for one
 function invasionsOf(map) { return ((map && map.invasions) || []).filter(v => !/^(spawner_|trophy)?jotun(witch|warrior)/.test(v.k || "")); }
-// ---------- sign search on the map (every sign in the world, sent by the server) ----------
-function signMatches() {
-  const q = norm($("#sq").value), all = (LAST_RAW && LAST_RAW.map && LAST_RAW.map.signs) || [];
+// ---------- map pins from the cartography table: list, search, click to find on the map ----------
+function pinList() {
+  const map = LAST_RAW && LAST_RAW.map; if (!map || !map.pins) return null;
+  return map.pins.map(p => ({ t: pinName(p.t) || "", x: p.x, z: p.z, k: p.k, c: p.c }));
+}
+function signMatches() {   // pins whose name matches the search (marked on the map)
+  const q = norm($("#sq").value), all = pinList() || [];
   if (!q) return [];
   const words = q.split(" ");
-  return all.filter(s2 => { const t = norm(s2.t); return words.every(w => t.includes(w)); });
+  return all.filter(p => { const t = norm(p.t); return t && words.every(w => t.includes(w)); });
 }
-function signFind(x, z) { return ((LAST_RAW && LAST_RAW.map && LAST_RAW.map.signs) || []).find(q => q.x === x && q.z === z);
-}
+function signFind(x, z) { return (pinList() || []).find(q => q.x === x && q.z === z); }
 function drawSignList() {
-  const all = (LAST_RAW && LAST_RAW.map && LAST_RAW.map.signs);
+  const all = pinList();
+  const named = all ? all.filter(p => p.t) : [];
   $("#scount").textContent = all && all.length ? "· " + all.length : "";
   const el = $("#slist");
-  if (!all) { el.innerHTML = `<p class="empty">Sign search arrives with Wall Live 1.6.7 on the server.</p>`; return; }
+  if (!all) { el.innerHTML = `<p class="empty">Waiting for the cartography table…</p>`; return; }
   const q = $("#sq").value.trim();
   const b = (LAST_RAW.map.base) || { x: 335, z: -465 };
-  const rows = (q ? signMatches() : all.slice().sort((p, r) => Math.hypot(p.x - b.x, p.z - b.z) - Math.hypot(r.x - b.x, r.z - b.z))).slice(0, q ? 80 : 150);
-  el.innerHTML = rows.length ? rows.map(s2 => { const dist = Math.hypot(s2.x - b.x, s2.z - b.z), on = M.sg && M.sg.x === s2.x && M.sg.z === s2.z;
-    return `<div class="prow ${on ? "on" : ""}" data-sx="${s2.x}" data-sz="${s2.z}"><b>${esc(s2.t)}</b><span>${dist < 1000 ? Math.round(dist) + " m" : (dist / 1000).toFixed(1) + " km"}</span></div>`; }).join("")
-    : `<p class="empty">No sign says that.</p>`;
+  const byDist = (p, r2) => Math.hypot(p.x - b.x, p.z - b.z) - Math.hypot(r2.x - b.x, r2.z - b.z);
+  const rows = (q ? signMatches() : named.slice()).sort(byDist).slice(0, q ? 120 : 200);
+  const unnamed = all.length - named.length;
+  el.innerHTML = (rows.length ? rows.map(p => { const dist = Math.hypot(p.x - b.x, p.z - b.z), on = M.sg && M.sg.x === p.x && M.sg.z === p.z;
+    return `<div class="prow pinrow ${on ? "on" : ""}${p.c ? " done" : ""}" data-sx="${p.x}" data-sz="${p.z}"><b><i style="background:${PINCOL[p.k] || "#fff"}"></i>${esc(p.t)}${p.c ? " <small>✓ crossed out</small>" : ""}</b><span>${dist < 1000 ? Math.round(dist) + " m" : (dist / 1000).toFixed(1) + " km"}</span></div>`; }).join("")
+    : `<p class="empty">No pin is called that.</p>`) + (!q && unnamed ? `<p class="empty" style="font-size:13px">${unnamed} pin${unnamed === 1 ? "" : "s"} without a name are only on the map.</p>` : "");
 }
 document.querySelector(".ptabs").addEventListener("click", e => { const b = e.target.closest("[data-pt]"); if (!b) return;
   document.querySelectorAll(".ptab").forEach(x => x.classList.toggle("on", x === b));
@@ -1863,7 +1871,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-24-0040";
+const BUILD = "2026-10-24-1130";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
@@ -2455,7 +2463,8 @@ const NOTES = [
     "<b>Tidier top</b>: server status in one bar, What's new and Raid horn top right. Long chest names now fit.",
     "<b>Base in 3D</b>: Support and Damage are now separate views. Hide roofs, Spin and Full screen moved under <b>More</b>.",
     "<b>Support view</b> uses the game's own support rule, with the same blue / green / yellow / red as the building colours in game.",
-    "This <b>What's new</b> page." ] },
+    "This <b>What's new</b> page.",
+    "<b>Map: Pins tab</b> replaces Signs. It lists your cartography-table pins: search them, click one to find it on the map." ] },
   { id: "2026-10-23", date: "23 October 2026", title: "Chat, weather and damage", items: [
     "<b>Chat from the website</b>: messages show in the game chat as [Web] name, and game chat shows here.",
     "<b>Weather forecast</b> for the base, with what's coming next.",
