@@ -1503,10 +1503,22 @@ function modelGeo(THREE, sh) {
   const ball = (r, c, x = 0, y = 0, z = 0) => add(new THREE.SphereGeometry(r, 10, 7), c, x, y, z);
   const m = Math.min(W, D);
   let hit = true;
-  if (/^portal/.test(n)) {                                   // two posts, a lintel and the swirl
-    const stone = /stone/.test(n) ? 0x77736c : 0x5a4330, t = Math.min(.5, W * .14);
-    box(t, H, Math.min(D, .6), stone, -W / 2 + t / 2); box(t, H, Math.min(D, .6), stone, W / 2 - t / 2);
-    box(W, t, Math.min(D, .7), stone, 0, H - t); box(W - 2 * t, H - t * 1.2, .08, 0x9a5cff, 0, t * .2);
+  if (/^portal/.test(n)) {
+    const swirl = (rad, y) => { const g = new THREE.CylinderGeometry(rad, rad, .06, 24); g.rotateX(Math.PI / 2); add(g, 0x8a5cff, 0, y, 0); };
+    if (/stone/.test(n)) {                                    // stone portal: a platform, a ring of standing stones, the swirl in the middle
+      const R = Math.min(W * .42, (H - .4) * .5), cyy = .35 + R;
+      box(W * .8, .35, Math.min(D, 3), 0x6f6b64);
+      for (let k = 0; k <= 8; k++) { const a = Math.PI * (k / 8); const sx = Math.cos(a) * R, sy = Math.sin(a) * R;
+        const g = new THREE.BoxGeometry(.9, 1.1, 1.1); g.rotateZ(a - Math.PI / 2); add(g, k % 2 ? 0x77736c : 0x6a665f, sx, cyy + sy - (k === 0 || k === 8 ? R : 0) * 0, 0); }
+      for (const sx of [-1, 1]) box(.9, cyy, 1.1, 0x6a665f, sx * R, .35);
+      swirl(R * .62, cyy);
+    } else {                                                  // wooden portal: posts, a lintel with horns, the swirl
+      const t = Math.min(.35, W * .1), dd = Math.min(D, .5);
+      box(t, H * .92, dd, 0x5a4330, -W / 2 + t, 0); box(t, H * .92, dd, 0x5a4330, W / 2 - t, 0);
+      box(W, t, dd * 1.1, 0x4a3524, 0, H * .86); box(t * .7, H * .14, t * .7, 0x4a3524, -W / 2 + t * .6, H * .86); box(t * .7, H * .14, t * .7, 0x4a3524, W / 2 - t * .6, H * .86);
+      box(W * .9, .2, dd * 1.2, 0x4a3524, 0, 0);
+      swirl(Math.min(W * .32, H * .36), H * .45);
+    }
   } else if (/chest|treasure_?chest/.test(n) && !/stack/.test(n)) {          // body, lid, iron bands
     const wood = /private/.test(n) ? 0x6e4a2a : /treasure|blackmetal/.test(n) ? 0x4a3a2c : 0x8a5a2e;
     box(W, H * .62, D, wood); box(W * 1.02, H * .38, D * 1.02, wood - 0x0d0906, 0, H * .62);
@@ -1589,13 +1601,77 @@ function modelGeo(THREE, sh) {
   out.userData.vc = true; return out;
 }
 // small plants for the farm and garden (not counted as building pieces)
-function plantGeo(THREE, n) {
-  const col = /oat|barley|flax/.test(n) ? 0xc9b25a : /seed/.test(n) ? 0x6f8f3a : /berry|bush/.test(n) ? 0x3f6b2e : 0x5c8f34;
-  if (/beech|birch|oak|fir|pine/.test(n)) { const g = new THREE.ConeGeometry(.9, 2.6, 7); g.translate(0, 2.3, 0); const t = new THREE.CylinderGeometry(.12, .15, 1.2, 6); t.translate(0, .6, 0); return [[t, 0x5a4330], [g, 0x3f6b2e]]; }
-  if (/bush|berry/.test(n)) { const g = new THREE.SphereGeometry(.55, 8, 6); g.translate(0, .45, 0); return [[g, col]]; }
+function plantGeo(THREE, n, b) {
+  const col = /oat|barley|flax/.test(n) ? 0xc9b25a : /seed/.test(n) ? 0x6f8f3a : /rasp/.test(n) ? 0x4f6e2c : /blue/.test(n) ? 0x3e5f3a : /cloud/.test(n) ? 0x6a7d3c : /berry|bush/.test(n) ? 0x3f6b2e : 0x5c8f34;
+  const w = b ? Math.max(.4, Math.min(5, b[3] - b[0])) : 1.2, hh = b ? Math.max(.3, Math.min(8, b[4] - Math.max(0, b[1]))) : 1;
+  if (/beech|birch|oak|fir|pine/.test(n)) { return treeParts(THREE, /fir|pine/.test(n) ? "f" : /birch/.test(n) ? "h" : "b", Math.max(2.5, hh) / 9); }
+  if (/bush|berry/.test(n)) { const parts = [];
+    for (let k = 0; k < 3; k++) { const g = new THREE.IcosahedronGeometry(w * (.32 - k * .04), 1); g.translate((k - 1) * w * .22, hh * (.38 + (k % 2) * .1), (k % 2 ? 1 : -1) * w * .12); parts.push([g, k === 1 ? col : col - 0x060a04]); }
+    if (/rasp|blue|cloud/.test(n)) for (let k = 0; k < 5; k++) { const g = new THREE.SphereGeometry(.07, 5, 4); g.translate(Math.cos(k * 1.3) * w * .3, hh * .55, Math.sin(k * 1.3) * w * .3); parts.push([g, /rasp/.test(n) ? 0xc0303a : /blue/.test(n) ? 0x3a4ab0 : 0xe0b040]); }
+    return parts; }
   const g = new THREE.ConeGeometry(.18, /seed/.test(n) ? .3 : .7, 5); g.translate(0, /seed/.test(n) ? .15 : .35, 0); return [[g, col]];
 }
 
+// a tree (or rock) for the nature around the base; s = size factor (1 = a full-grown tree)
+function treeParts(THREE, k, s) {
+  const P = [];
+  const trunk = (r, h, c) => { const g = new THREE.CylinderGeometry(r * .7, r, h, 7); g.translate(0, h / 2, 0); P.push([g, c]); };
+  const blob = (r, x, y, z, c) => { const g = new THREE.IcosahedronGeometry(r, 1); g.translate(x, y, z); P.push([g, c]); };
+  const cone = (r, h, y, c) => { const g = new THREE.ConeGeometry(r, h, 8); g.translate(0, y + h / 2, 0); P.push([g, c]); };
+  if (k === "b") { trunk(.35 * s, 9 * s, 0x6b5a4a); blob(3 * s, 0, 10 * s, 0, 0x4f7a2e); blob(2.2 * s, 1.6 * s, 8.6 * s, .8 * s, 0x5a8634); blob(2 * s, -1.5 * s, 9 * s, -1 * s, 0x47702a); }
+  else if (k === "o") { trunk(.7 * s, 6 * s, 0x5a4636); blob(4.5 * s, 0, 8.5 * s, 0, 0x4c6e2a); blob(3.4 * s, 3 * s, 7 * s, 1 * s, 0x557a30); blob(3.2 * s, -2.8 * s, 7.4 * s, -1.2 * s, 0x456628); }
+  else if (k === "h") { trunk(.25 * s, 8 * s, 0xd8d4c8); blob(2 * s, 0, 8.5 * s, 0, 0x7a9a3a); blob(1.5 * s, .9 * s, 7 * s, .5 * s, 0x86a540); }
+  else if (k === "p") { trunk(.4 * s, 12 * s, 0x6a4a34); blob(2.2 * s, 0, 13 * s, 0, 0x2f5a34); blob(1.6 * s, 1.2 * s, 11.5 * s, 0, 0x335f38); }
+  else if (k === "f") { trunk(.35 * s, 3 * s, 0x5a4030); cone(2.6 * s, 4 * s, 2 * s, 0x24502e); cone(2 * s, 3.5 * s, 4.6 * s, 0x2a5934); cone(1.3 * s, 3 * s, 7 * s, 0x2f6038); }
+  else if (k === "w") { trunk(.6 * s, 7 * s, 0x3d3428); blob(3 * s, 0, 8 * s, 0, 0x3d4a26); blob(2 * s, 1.8 * s, 6.5 * s, 0, 0x45522a); }
+  else if (k === "y") { trunk(.5 * s, 6 * s, 0xc8c0b0); blob(2.6 * s, 0, 7 * s, 0, 0xd8d2a0); }
+  else if (k === "s") { blob(1 * s, 0, .7 * s, 0, 0x3f6b2e); blob(.8 * s, .7 * s, .55 * s, .3 * s, 0x47752f); blob(.75 * s, -.6 * s, .5 * s, -.3 * s, 0x386227); }
+  else if (k === "r") { const g = new THREE.DodecahedronGeometry(1.4 * s, 0); g.scale(1.3, .75, 1); g.translate(0, .45 * s, 0); P.push([g, 0x7d7a74]); const g2 = new THREE.DodecahedronGeometry(.8 * s, 0); g2.translate(1.1 * s, .3 * s, .5 * s); P.push([g2, 0x8a8780]); }
+  return P;
+}
+
+// building textures (one tile = 2 m): planks for wood, thatch or shingles for roofs, blocks for stone, veins for marble
+const TEXCACHE = {};
+function matTexture(THREE, n, baseHex, metres, renderer) {
+  const kind = /roof/.test(n) && !/wall/.test(n) ? (/darkwood/.test(n) ? "shingle" : "thatch")
+    : /blackmarble/.test(n) ? "marble" : /grausten/.test(n) ? "slate" : /stone/.test(n) ? "stone"
+    : /beam|pole|log/.test(n) ? "grain" : "planks";
+  const key = kind + baseHex;
+  let base = TEXCACHE[key];
+  if (!base) {
+    const S = 256, cv = document.createElement("canvas"); cv.width = cv.height = S; const c = cv.getContext("2d");
+    const hex = "#" + baseHex.toString(16).padStart(6, "0"); c.fillStyle = hex; c.fillRect(0, 0, S, S);
+    let seed = baseHex % 9973 + kind.length * 31; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const shade = (a) => a > 0 ? `rgba(255,240,220,${a})` : `rgba(0,0,0,${-a})`;
+    if (kind === "planks" || kind === "grain") {
+      const rows = kind === "grain" ? 2 : 6, hgt = S / rows;
+      for (let i = 0; i < rows; i++) { c.fillStyle = shade((rnd() - .5) * .16); c.fillRect(0, i * hgt, S, hgt);
+        for (let k = 0; k < 26; k++) { c.strokeStyle = shade(-(.03 + rnd() * .07)); c.lineWidth = 1 + rnd() * 1.5; const y = i * hgt + rnd() * hgt; c.beginPath(); c.moveTo(0, y); c.bezierCurveTo(S * .3, y + (rnd() - .5) * 6, S * .7, y + (rnd() - .5) * 6, S, y + (rnd() - .5) * 4); c.stroke(); }
+        c.fillStyle = shade(-.45); c.fillRect(0, i * hgt, S, 2);
+        if (kind === "planks") { const x = rnd() * S; c.fillRect(x, i * hgt, 2, hgt); c.fillStyle = shade(-.5); c.beginPath(); c.arc(x + 8, i * hgt + hgt / 2, 2.2, 0, 7); c.arc(x - 8, i * hgt + hgt / 2, 2.2, 0, 7); c.fill(); }
+      }
+    } else if (kind === "thatch") {
+      for (let k = 0; k < 2600; k++) { const x = rnd() * S, y = rnd() * S, l = 10 + rnd() * 22; c.strokeStyle = shade((rnd() - .55) * .35); c.lineWidth = 1; c.beginPath(); c.moveTo(x, y); c.lineTo(x + (rnd() - .5) * 4, y + l); c.stroke(); }
+      for (let i = 0; i < 8; i++) { c.fillStyle = shade(-.18); c.fillRect(0, i * S / 8, S, 3); }
+    } else if (kind === "shingle") {
+      const rows = 10, h2 = S / rows;
+      for (let i = 0; i < rows; i++) { const off = (i % 2) * 16; for (let x = -32 + off; x < S; x += 32) { c.fillStyle = shade((rnd() - .5) * .22); c.fillRect(x + 1, i * h2 + 1, 30, h2 - 2); }
+        c.fillStyle = shade(-.5); c.fillRect(0, i * h2 + h2 - 3, S, 3); }
+    } else if (kind === "stone" || kind === "slate") {
+      const rows = kind === "slate" ? 4 : 5, h2 = S / rows;
+      for (let i = 0; i < rows; i++) { let x = -(i % 2) * 40; while (x < S) { const w = 50 + rnd() * 50; c.fillStyle = shade((rnd() - .5) * .3); c.fillRect(x + 2, i * h2 + 2, w - 4, h2 - 4);
+        for (let k = 0; k < 40; k++) { c.fillStyle = shade((rnd() - .5) * .12); c.fillRect(x + rnd() * w, i * h2 + rnd() * h2, 2, 2); } x += w; } }
+      c.strokeStyle = shade(-.35); c.lineWidth = 2;
+    } else if (kind === "marble") {
+      for (let k = 0; k < 14; k++) { c.strokeStyle = `rgba(220,225,235,${.06 + rnd() * .12})`; c.lineWidth = .8 + rnd() * 1.5; c.beginPath(); let x = rnd() * S, y = 0; c.moveTo(x, y); while (y < S) { x += (rnd() - .5) * 30; y += 10 + rnd() * 20; c.lineTo(x, y); } c.stroke(); }
+      c.strokeStyle = shade(-.4); c.lineWidth = 2; c.strokeRect(1, 1, S - 2, S - 2);
+    }
+    base = TEXCACHE[key] = new THREE.CanvasTexture(cv);
+    base.wrapS = base.wrapT = THREE.RepeatWrapping; base.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  }
+  if (!metres) return base;
+  const t = base.clone(); t.needsUpdate = true; t.repeat.set(.5, .5); return t;
+}
 // several [geometry, colour] parts -> one geometry with colours
 function mergeColored(THREE, list) {
   const col = new THREE.Color(); let len = 0; const gs2 = list.map(([g, c]) => { g = g.index ? g.toNonIndexed() : g; len += g.attributes.position.count; return [g, c]; });
@@ -1614,7 +1690,7 @@ function decodePaint(p) {
   return (decodePaint.c = { src: p.rle, n: p.n, g: out });
 }
 function groundTexture(THREE, data, renderer, o) {
-  const { gAt, gn, size, water } = o, T = Math.min(1024, Math.max(256, Math.ceil(size / .5)));
+  const { gAt, gn, size, water } = o, T = Math.min(matchMedia("(pointer: coarse)").matches ? 1024 : 2048, Math.max(256, Math.ceil(size / .2)));
   const cv = document.createElement("canvas"); cv.width = cv.height = T; const cx = cv.getContext("2d"), id = cx.createImageData(T, T), px = id.data;
   const hAt = (u, v) => { const f = gn - 1, x = Math.max(0, Math.min(f, u)), y = Math.max(0, Math.min(f, v)), i = Math.min(f - 1, Math.floor(x)), j = Math.min(f - 1, Math.floor(y)), tx = x - i, ty = y - j;
     return (gAt(i, j) * (1 - tx) + gAt(i + 1, j) * tx) * (1 - ty) + (gAt(i, j + 1) * (1 - tx) + gAt(i + 1, j + 1) * tx) * ty; };
@@ -1629,22 +1705,57 @@ function groundTexture(THREE, data, renderer, o) {
     const bk = Math.round(x / 8) + "," + Math.round(z / 8); let bio = bcache.get(bk);
     if (bio === undefined) { bio = BIO[biomeAt(data.x0 + x, data.z0 + z)] || BIO.Meadows; bcache.set(bk, bio); }
     const n1 = vnoise(x * .08, z * .08), n2 = vnoise(x * .6, z * .6), n3 = hash(Math.floor(x * 2), Math.floor(z * 2));
-    let c = [bio[0] * (.86 + n1 * .22), bio[1] * (.86 + n1 * .26 + (n2 - .5) * .08), bio[2] * (.85 + n1 * .2)];
+    const n4 = hash(Math.floor(x * 5), Math.floor(z * 5)), clump = vnoise(x * .9 + 40, z * .9) > .72 ? .9 : 1, flower = n4 > .9985 && n1 > .55 && bio === BIO.Meadows;
+    let c = [bio[0] * (.86 + n1 * .22) * clump, bio[1] * (.86 + n1 * .26 + (n2 - .5) * .08) * clump, bio[2] * (.85 + n1 * .2) * clump];
+    c = c.map(a => a * (.93 + n4 * .12));
+    if (flower) c = n2 > .5 ? [220, 210, 120] : [230, 230, 235];
     const rock = Math.max(0, Math.min(1, (sl - .65) / .5));
     if (rock > 0) { const rc = [96 + n2 * 18, 93 + n2 * 16, 88 + n2 * 14]; c = c.map((a, k) => a * (1 - rock) + rc[k] * rock); }
     if (h < water + .9) { const t = Math.max(0, Math.min(1, (water + .9 - h) / .9)), sd = h < water ? [104, 96, 70] : [176, 162, 114]; c = c.map((a, k) => a * (1 - t) + sd[k] * t); }
     if (paint) {
       const i = Math.round(x) + ph, j = Math.round(z) + ph;
       const pv = i >= 0 && j >= 0 && i < paint.n && j < paint.n ? paint.g[j * paint.n + i] : 0;
-      if (pv === 1) c = [92 + n2 * 20, 70 + n2 * 14, 46 + n2 * 9];                                   // dirt path
-      else if (pv === 2) { const f = (Math.floor(x * 2.5) & 1) ? .82 : 1; c = [76 * f + n3 * 8, 54 * f + n3 * 6, 36 * f + n3 * 4]; }  // cultivated rows
-      else if (pv === 3) { const gx = x - Math.floor(x), gz = z - Math.floor(z), line = gx < .07 || gz < .07; c = line ? [70, 68, 64] : [112 + n3 * 16, 109 + n3 * 16, 102 + n3 * 14]; } // paving
+      if (pv === 1) { const peb = n4 > .93 ? 1.25 : n4 < .05 ? .8 : 1; c = [(88 + n2 * 22) * peb, (67 + n2 * 15) * peb, (44 + n2 * 10) * peb]; }    // dirt path, with pebbles
+      else if (pv === 2) { const f = .78 + .3 * Math.max(0, Math.sin(x * Math.PI * 2.2)) ; c = [(70 + n4 * 14) * f, (49 + n4 * 10) * f, (33 + n4 * 7) * f]; }  // cultivated soil in rows
+      else if (pv === 3) {                                                                               // stone paving: uneven slabs
+        const sx = x / .7, sz = z / .7 + (Math.floor(x / .7) % 2) * .5, ix = Math.floor(sx), iz = Math.floor(sz), fx = sx - ix, fz = sz - iz, edge = Math.min(fx, fz, 1 - fx, 1 - fz);
+        const tone = hash(ix, iz); c = edge < .07 ? [64, 62, 58] : [(104 + tone * 30) * (.96 + n4 * .08), (101 + tone * 28) * (.96 + n4 * .08), (95 + tone * 26) * (.96 + n4 * .08)];
+      }
     }
     const k = (py * T + qx) * 4; px[k] = c[0]; px[k + 1] = c[1]; px[k + 2] = c[2]; px[k + 3] = 255;
   }
   cx.putImageData(id, 0, 0);
   const tex = new THREE.CanvasTexture(cv); tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   return tex;
+}
+// roof pieces whose corners aren't on one flat plane (ridge caps, inner and outer corners): build the real surfaces
+function roofSurface(THREE, pts, out) {
+  let tris = [];
+  if (pts.length === 4) {
+    const ys = pts.map(p => p.y), odd = pts.map((p, i) => Math.abs(p.y - (ys.reduce((a, b) => a + b, 0) - p.y) / 3)), u = odd.indexOf(Math.max(...odd));
+    let opp = -1, best = -1; pts.forEach((p, i) => { if (i === u) return; const d = Math.hypot(p.x - pts[u].x, p.z - pts[u].z); if (d > best) { best = d; opp = i; } });
+    const rest = [0, 1, 2, 3].filter(i => i !== u && i !== opp); tris = [[pts[u], pts[rest[0]], pts[opp]], [pts[u], pts[opp], pts[rest[1]]]];
+  } else {                                     // upper faces of the shape the corners make
+    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) for (let k = j + 1; k < pts.length; k++) {
+      const a = pts[i], b = pts[j], c = pts[k], nn = b.clone().sub(a).cross(c.clone().sub(a)); if (nn.length() < 1e-4) continue; nn.normalize(); if (nn.y < 0) nn.negate();
+      if (nn.y < .15) continue;
+      if (pts.every((p, m) => m === i || m === j || m === k || p.clone().sub(a).dot(nn) <= .05)) tris.push([a, b, c]);
+    }
+  }
+  if (!tris.length) return null;
+  out.kind = "m"; return triSlab(THREE, tris, .16);
+}
+function triSlab(THREE, tris, th) {
+  const P = [], U = [];
+  const push = (v, uv) => { P.push(v.x, v.y, v.z); U.push(uv[0], uv[1]); };
+  for (let [a, b, c] of tris) {
+    const n = b.clone().sub(a).cross(c.clone().sub(a)).normalize(); if (n.y < 0) { [b, c] = [c, b]; n.negate(); }
+    const d = n.clone().multiplyScalar(-th), a2 = a.clone().add(d), b2 = b.clone().add(d), c2 = c.clone().add(d);
+    const e1 = b.clone().sub(a).normalize(), e2 = n.clone().cross(e1), uv = p => [p.clone().sub(a).dot(e1), p.clone().sub(a).dot(e2)];
+    push(a, uv(a)); push(b, uv(b)); push(c, uv(c)); push(a2, uv(a)); push(c2, uv(c)); push(b2, uv(b));
+    for (const [p, q2, pp, qq] of [[a, b, a2, b2], [b, c, b2, c2], [c, a, c2, a2]]) { push(p, [0, 0]); push(pp, [0, .1]); push(q2, [1, 0]); push(q2, [1, 0]); push(pp, [0, .1]); push(qq, [1, .1]); }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(U, 2)); g.computeVertexNormals(); return g;
 }
 function partGeo(THREE, sh, out) {
   const b = sh.b, s = sh.s || []; out = out || {}; out.R = new THREE.Matrix4();
@@ -1674,7 +1785,7 @@ function partGeo(THREE, sh, out) {
       for (const p of pts) { const c = u.clone().cross(p.clone().sub(p0)); if (c.length() > area) { area = c.length(); n = c; } }
       if (!n || area < .05) return box();
       n.normalize();
-      if (pts.some(p => Math.abs(p.clone().sub(p0).dot(n)) > .15)) return box();
+      if (pts.some(p => Math.abs(p.clone().sub(p0).dot(n)) > .15)) { const rg = roofSurface(THREE, pts, out); return rg || box(); }
       const v = n.clone().cross(u);
       let P2 = pts.map(p => { const d = p.clone().sub(p0); return [d.dot(u), d.dot(v)]; }).sort((x, y) => x[0] - y[0] || x[1] - y[1]);
       const cr = (o, p, q) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
@@ -1683,10 +1794,10 @@ function partGeo(THREE, sh, out) {
       const hull = lo.slice(0, -1).concat(hi.slice(0, -1)); if (hull.length < 3) return box();
       // thickness: how deep the visible mesh is along the slab's normal
       let mn = 1e9, mx = -1e9; for (let k = 0; k < 8; k++) { const c = new THREE.Vector3(k & 1 ? b[3] : b[0], k & 2 ? b[4] : b[1], -(k & 4 ? b[5] : b[2])); const d = c.sub(p0).dot(n); mn = Math.min(mn, d); mx = Math.max(mx, d); }
-      const th = Math.min(.45, Math.max(.08, mx - mn));
+      const th = /roof/.test(sh.n) && !/wall/.test(sh.n) ? .18 : Math.min(.45, Math.max(.08, mx - mn));
       const shape = new THREE.Shape(hull.map(([x, y]) => new THREE.Vector2(x, y)));
       const g = new THREE.ExtrudeGeometry(shape, { depth: th, bevelEnabled: false }); g.translate(0, 0, -th / 2);
-      g.applyMatrix4(new THREE.Matrix4().makeBasis(u, v, n)); out.R = new THREE.Matrix4().makeBasis(u, v, n); g.translate(p0.x, p0.y, p0.z); return g;
+      g.applyMatrix4(new THREE.Matrix4().makeBasis(u, v, n)); out.R = new THREE.Matrix4().makeBasis(u, v, n); out.kind = "m"; g.translate(p0.x, p0.y, p0.z); return g;
     }
   } catch (e) {}
   return box();
@@ -1773,9 +1884,10 @@ function buildBase(keepCam) {
   for (const [si, list] of Object.entries(byShape)) {
     const sh = data.shapes[si]; if (!sh) continue;
     const look = partLook(sh.n);
-    const geo = partGeo(THREE, sh), vc = !!geo.userData.vc;
-    const mat = new THREE.MeshLambertMaterial({ color: vc ? 0xffffff : look.c, vertexColors: vc, emissive: vc ? (look.fire ? 0x2a1206 : /portal/.test(sh.n) ? 0x1a0830 : 0) : look.e || 0, transparent: !!look.t && !vc, opacity: vc ? 1 : look.t || 1 });
-    mat.userData.vc = vc;
+    const go = {}, geo = partGeo(THREE, sh, go), vc = !!geo.userData.vc;
+    const tex = vc || look.t || look.fire || /portal|iron|metal/.test(sh.n) ? null : matTexture(THREE, sh.n, look.c, go.kind === "m", renderer);
+    const mat = new THREE.MeshLambertMaterial({ color: vc || tex ? 0xffffff : look.c, map: tex, vertexColors: vc, emissive: vc ? (look.fire ? 0x2a1206 : /portal/.test(sh.n) ? 0x08030f : 0) : look.e || 0, transparent: !!look.t && !vc, opacity: vc ? 1 : look.t || 1 });
+    mat.userData.vc = vc; mat.userData.map = tex;
     const im = new THREE.InstancedMesh(geo, mat, list.length);
     list.forEach((p, k) => {
       if (p.length === 5) q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[4] * Math.PI / 180);
@@ -1790,10 +1902,19 @@ function buildBase(keepCam) {
   const plantKinds = {};
   for (const p of data.parts) { const sh = data.shapes[p[0]]; if (!sh || !NOT_BUILDING.test(sh.n) || /^pickable_/.test(sh.n) || Math.hypot(p[1], p[3]) > range) continue; (plantKinds[sh.n] = plantKinds[sh.n] || []).push(p); }
   for (const [pn, list] of Object.entries(plantKinds)) {
-    const geo = mergeColored(THREE, plantGeo(THREE, pn)), im = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }), list.length);
+    const geo = mergeColored(THREE, plantGeo(THREE, pn, (data.shapes.find(x => x.n === pn) || {}).b)), im = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }), list.length);
     list.forEach((p, k) => { const sc = .85 + ((p[1] * 7.3 + p[3] * 3.1) % 1 + 1) % 1 * .3; q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (p[1] * 13 + p[3]) % 6.28);
       m4.compose(new THREE.Vector3(p[1], p[2], -p[3]), q, new THREE.Vector3(sc, sc, sc)); im.setMatrixAt(k, m4); });
     im.castShadow = true; im.receiveShadow = true; im.userData = { soft: true, plant: pn }; scene.add(im);
+  }
+  // natural trees, bushes and rocks (Wall Live 2.1.4)
+  const vegBy = {};
+  for (const v of data.veg || []) { const [k, x, y, z] = v; if (Math.hypot(x, z) > range) continue; (vegBy[k] = vegBy[k] || []).push(v); }
+  for (const [k, list] of Object.entries(vegBy)) {
+    const geo = mergeColored(THREE, treeParts(THREE, k, 1)), im = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }), list.length);
+    list.forEach(([, x, y, z], i) => { const hsh = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1, sc = (k === "r" ? .7 + hsh * 1.6 : k === "s" ? .7 + hsh * .6 : .75 + hsh * .5);
+      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), hsh * 6.28); m4.compose(new THREE.Vector3(x, y, -z), q, new THREE.Vector3(sc, sc, sc)); im.setMatrixAt(i, m4); });
+    im.castShadow = true; im.receiveShadow = true; im.userData = { soft: true, plant: "veg-" + k }; scene.add(im);
   }
   const fireLights = lights.map(v => { const l = new THREE.PointLight(0xff8a3c, 0, 14, 2); l.position.copy(v); scene.add(l); return l; });
   // look at the middle of the buildings
@@ -2044,7 +2165,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-24-1215";
+const BUILD = "2026-10-24-1240";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
@@ -2275,8 +2396,8 @@ function applyIntegrity() {
   const THREE = B3.THREE, mode = B3.integrity, { hp, sup, est, real } = integrityMaps(), c = new THREE.Color();
   for (const m of B3.meshes) {
     const mt = m.material; if (mt.userData.col === undefined) mt.userData.col = mt.color.getHex();
-    if (!mode) { if (m.instanceColor) { m.instanceColor = null; mt.color.setHex(mt.userData.col); mt.vertexColors = !!mt.userData.vc; mt.needsUpdate = true; } continue; }
-    mt.color.setHex(0xffffff); if (mt.vertexColors) { mt.vertexColors = false; mt.needsUpdate = true; }
+    if (!mode) { if (m.instanceColor) { m.instanceColor = null; mt.color.setHex(mt.userData.col); mt.vertexColors = !!mt.userData.vc; mt.map = mt.userData.map || null; mt.needsUpdate = true; } continue; }
+    mt.color.setHex(0xffffff); if (mt.vertexColors || mt.map) { mt.vertexColors = false; mt.map = null; mt.needsUpdate = true; }
     m.userData.idx.forEach((i, k) => {
       let col;
       if (mode === "sup") col = sup.has(i) ? supColor(sup.get(i)) : 0x8d8a86;   // grey: support unknown
@@ -2642,6 +2763,7 @@ const NOTES = [
     "<b>Base in 3D</b>: Support and Damage are now separate views. Hide roofs, Spin and Full screen moved under <b>More</b>.",
     "<b>Support view</b> uses the game's own support rule, with the same blue / green / yellow / red as the building colours in game.",
     "This <b>What's new</b> page.",
+    "<b>More detail in 3D</b>: wood, roofs and stone have textures (planks, thatch, shingles, stone blocks, marble). Ridge caps and roof corners have their real shape. Stone portals are a ring of stones. Bushes are their real size, and with Wall Live 2.1.4 the trees, bushes and rocks around the base show up too. The ground has finer grass, flowers, ploughed rows and stone slabs.",
     "<b>3D base looks more real</b>: the ground has grass patches, bare rock on steep slopes, sand at the shore and (with Wall Live 2.1.3) your paths, fields and paving. Chests, signs, torches, portals, beds, tables, chairs, rugs, the windmill, carts, smelters, forges, banners and more now have proper shapes, and crops, saplings and bushes show up.",
     "<b>Support from the game</b>: the 3D base now shows the support value the game itself saved for each piece (hover a piece to see it). Pieces nobody has been near lately are still worked out.",
     "<b>Real ground</b>: hoe and pickaxe changes are now part of the 3D base's ground.",
