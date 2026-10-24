@@ -1487,8 +1487,168 @@ function partLook(n) {
   if (/karve|longship|raft|ship|boat/.test(n)) return { c: 0x7a5a3a };
   return { c: 0x9b6b3f };
 }
+
+// ---- simple models for things that aren't walls/floors/roofs (the server only sends their size) ----
+// Built inside the piece's own box (Valheim's axes; z is flipped for three.js like box()). Each part has its own colour.
+function modelGeo(THREE, sh) {
+  const n = sh.n, b = sh.b; if (!b) return null;
+  const W = Math.max(.1, b[3] - b[0]), H = Math.max(.1, b[4] - b[1]), D = Math.max(.1, b[5] - b[2]);
+  const cx = (b[0] + b[3]) / 2, y0 = b[1], cz = -(b[2] + b[5]) / 2;
+  const parts = [], col = new THREE.Color();
+  const add = (g, c, x, y, z) => { g.translate(cx + x, y0 + y, cz + z); g = g.index ? g.toNonIndexed() : g; col.setHex(c);
+    const n2 = g.attributes.position.count, a = new Float32Array(n2 * 3); for (let i = 0; i < n2; i++) { a[i*3] = col.r; a[i*3+1] = col.g; a[i*3+2] = col.b; }
+    g.setAttribute("color", new THREE.BufferAttribute(a, 3)); parts.push(g); };
+  const box = (w, h, d, c, x = 0, y = 0, z = 0) => add(new THREE.BoxGeometry(Math.max(.02, w), Math.max(.02, h), Math.max(.02, d)), c, x, y + h / 2, z);
+  const cyl = (r1, r2, h, c, x = 0, y = 0, z = 0, seg = 10) => add(new THREE.CylinderGeometry(r1, r2, h, seg), c, x, y + h / 2, z);
+  const ball = (r, c, x = 0, y = 0, z = 0) => add(new THREE.SphereGeometry(r, 10, 7), c, x, y, z);
+  const m = Math.min(W, D);
+  let hit = true;
+  if (/^portal/.test(n)) {                                   // two posts, a lintel and the swirl
+    const stone = /stone/.test(n) ? 0x77736c : 0x5a4330, t = Math.min(.5, W * .14);
+    box(t, H, Math.min(D, .6), stone, -W / 2 + t / 2); box(t, H, Math.min(D, .6), stone, W / 2 - t / 2);
+    box(W, t, Math.min(D, .7), stone, 0, H - t); box(W - 2 * t, H - t * 1.2, .08, 0x9a5cff, 0, t * .2);
+  } else if (/chest|treasure_?chest/.test(n) && !/stack/.test(n)) {          // body, lid, iron bands
+    const wood = /private/.test(n) ? 0x6e4a2a : /treasure|blackmetal/.test(n) ? 0x4a3a2c : 0x8a5a2e;
+    box(W, H * .62, D, wood); box(W * 1.02, H * .38, D * 1.02, wood - 0x0d0906, 0, H * .62);
+    box(W * .08, H * 1.01, D * 1.04, 0x3b3b3e, -W * .3); box(W * .08, H * 1.01, D * 1.04, 0x3b3b3e, W * .3);
+  } else if (/barrel|fermenter/.test(n)) {
+    const r = m / 2; cyl(r * .9, r * .9, H * .95, 0x7a5230); cyl(r * .93, r * .93, H * .08, 0x3b3b3e, 0, H * .15); cyl(r * .93, r * .93, H * .08, 0x3b3b3e, 0, H * .75);
+  } else if (/^sign/.test(n)) {
+    box(W, H * .55, Math.min(D, .08), 0xb68a52, 0, H * .4); box(.08, H * .45, .08, 0x6b4a2c);
+  } else if (/groundtorch|^piece_brazier(?!ceiling)/.test(n)) {
+    cyl(.05, .07, H * .82, 0x4a3524); cyl(.14, .1, H * .08, 0x3b3b3e, 0, H * .8); box(.16, H * .14, .16, 0xff9a3c, 0, H * .86);
+  } else if (/walltorch|sconce/.test(n)) {
+    box(.1, H * .6, .1, 0x3b3b3e, 0, H * .2); box(.14, H * .25, .14, 0xff9a3c, 0, H * .75);
+  } else if (/^rug|carpet/.test(n)) {
+    const c = /wolf/.test(n) ? 0x9aa0a6 : /deer/.test(n) ? 0xb88a5a : /straw/.test(n) ? 0xcdb26a : /jute/.test(n) ? 0xc9b48a : /asksvin/.test(n) ? 0x7d6a4e : 0x7a5a3e;
+    box(W, Math.min(.05, H), D, c);
+  } else if (/itemstand|armorstand/.test(n)) {
+    if (/armor/.test(n)) { box(.1, H, .1, 0x6b4a2c); box(W * .8, .1, .1, 0x6b4a2c, 0, H * .78); box(W * .5, .06, D * .5, 0x6b4a2c); }
+    else box(W, H, Math.min(D, .06), 0x7a5634);
+  } else if (/table|preptable/.test(n) && !/magetable|cartography/.test(n)) {
+    const c = /blackmarble/.test(n) ? 0x45474d : 0x8a5a2e, l = .09;
+    box(W, .08, D, c, 0, H - .08); for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(l, H - .08, l, c, sx * (W / 2 - l), 0, sz * (D / 2 - l));
+  } else if (/chair|bench|throne|stool/.test(n)) {
+    const c = /throne|moose/.test(n) ? 0x5a3c26 : 0x8a5a2e, seat = Math.min(H * .45, .5);
+    box(W, .08, D, c, 0, seat); box(W, H - seat, .08, c, 0, seat, D / 2 - .04);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.07, seat, .07, c, sx * (W / 2 - .05), 0, sz * (D / 2 - .05));
+  } else if (/^bed|piece_bed/.test(n)) {
+    box(W, H * .35, D, 0x7a5230); box(W * .92, H * .12, D * .7, 0xa04a3a, 0, H * .35, -D * .1); box(W * .9, H * .14, D * .2, 0xe8e0cc, 0, H * .35, D * .36);
+    box(W, H * .9, .08, 0x7a5230, 0, 0, D / 2 - .04);
+  } else if (/^windmill/.test(n)) {
+    box(W * .45, H * .75, D * .45, 0x8a6a48); box(W * .5, H * .1, D * .5, 0x5a4330, 0, H * .75);
+    const hub = H * .72, L = Math.min(W, H) * .48;
+    box(.15, L * 2, .05, 0xd8cfb8, 0, hub - L, D * .3); box(L * 2, .15, .05, 0xd8cfb8, 0, hub, D * .3);
+  } else if (/^cart$/.test(n)) {
+    box(W * .9, H * .35, D * .8, 0x7a5230, 0, H * .35);
+    for (const sx of [-1, 1]) { const g = new THREE.CylinderGeometry(H * .35, H * .35, .1, 12); g.rotateZ(Math.PI / 2); add(g, 0x4a3524, sx * W * .47, H * .35, 0); }
+  } else if (/smelter|blastfurnace|kiln|eitrrefinery|incinerator|frostkiln/.test(n)) {
+    const c = /blast|incinerator|eitr/.test(n) ? 0x4a4c52 : 0x77736c;
+    cyl(m * .45, m * .5, H * .7, c); cyl(m * .18, m * .2, H * .3, c, 0, H * .7); box(m * .3, m * .2, .05, 0xff8a3c, 0, H * .15, D * .45);
+  } else if (/^forge$|^blackforge$|frostfoundry/.test(n)) {
+    box(W, H * .55, D, 0x5f5a55); box(W * .7, H * .08, D * .6, 0xff8a3c, 0, H * .55); box(W * .3, H * .45, D * .3, 0x5f5a55, -W * .3, H * .55, D * .25);
+  } else if (/workbench$|piece_workbench$|artisanstation$|magetable$|stonecutter/.test(n)) {
+    const c = /magetable/.test(n) ? 0x4a3a5a : /stonecutter/.test(n) ? 0x8f8d88 : 0x8a5a2e;
+    box(W, .1, D, c, 0, H * .45); for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.1, H * .45, .1, c, sx * (W / 2 - .08), 0, sz * (D / 2 - .08));
+    box(W * .9, H * .5, .06, c, 0, H * .5, D / 2 - .05);
+  } else if (/cauldron$/.test(n)) {
+    cyl(m * .45, m * .35, H * .55, 0x2e2e31, 0, H * .15); box(m * .6, H * .15, m * .6, 0x5a4330); box(m * .3, .06, m * .3, 0xff8a3c, 0, H * .05);
+  } else if (/oven/.test(n)) {
+    box(W, H * .3, D, 0x77736c); add(new THREE.SphereGeometry(m * .5, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), 0x8f8d88, 0, H * .3, 0);
+  } else if (/beehive/.test(n)) {
+    box(.1, H * .5, .1, 0x6b4a2c); box(W, H * .5, D, 0xc89a3a, 0, H * .5);
+  } else if (/banner/.test(n)) {
+    const c = [0xb03a2e, 0x2e5fa0, 0x3a8a4a, 0xc8a03a, 0x7a3aa0, 0x2a2a2a, 0xe0e0e0, 0xa05a2e][(+(n.match(/\d+/) || [0])[0]) % 8];
+    box(.06, H, .06, 0x5a4330, -W * .4); box(W * .7, H * .75, .03, c, 0, H * .2);
+  } else if (/garland|fairylight/.test(n)) {
+    box(W, .04, .04, 0xe8c547, 0, H * .5);
+  } else if (/wood_stack|woodpile/.test(n)) {
+    for (let k = 0; k < 3; k++) { const g = new THREE.CylinderGeometry(H * .18, H * .18, D, 8); g.rotateX(Math.PI / 2); add(g, 0x8a6a48, (k - 1) * W * .3, H * .2, 0); }
+    { const g = new THREE.CylinderGeometry(H * .18, H * .18, D, 8); g.rotateX(Math.PI / 2); add(g, 0x8a6a48, 0, H * .55, 0); }
+  } else if (/stone_pile|treasure_stack|coin/.test(n)) {
+    ball(m * .45, /treasure|coin/.test(n) ? 0xe2b33c : 0x8f8d88, 0, m * .25, 0);
+  } else if (/turret|catapult/.test(n)) {
+    box(W * .8, H * .4, D * .8, 0x5a4330); box(W * .15, H * .6, D * .7, 0x7a5634, 0, H * .4);
+  } else if (/cartographytable/.test(n)) {
+    box(W, .1, D, 0x8a5a2e, 0, H * .7); box(W * .9, .02, D * .8, 0xd9c79a, 0, H * .7 + .1); for (const sx of [-1, 1]) box(.12, H * .7, D * .8, 0x6b4a2c, sx * W * .4);
+  } else if (/lantern|candle/.test(n)) {
+    box(m * .5, H * .7, m * .5, 0x3b3b3e, 0, 0); box(m * .35, H * .4, m * .35, 0xffb85a, 0, H * .15);
+  } else if (/hanging_door|cloth/.test(n)) {
+    box(W, H, .04, 0x9a3a2e);
+  } else if (/bathtub/.test(n)) {
+    box(W, H * .6, D, 0x7a5230); box(W * .85, .02, D * .8, 0x5a8ab0, 0, H * .55);
+  } else if (/dummy|archerytarget/.test(n)) {
+    box(.1, H, .1, 0x6b4a2c); cyl(m * .35, m * .35, H * .45, 0xcdb26a, 0, H * .45);
+  } else hit = false;
+  if (!hit || !parts.length) return null;
+  // one geometry from all the parts
+  let len = 0; for (const g of parts) len += g.attributes.position.count;
+  const pos = new Float32Array(len * 3), nor = new Float32Array(len * 3), cc = new Float32Array(len * 3); let o = 0;
+  for (const g of parts) { pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); cc.set(g.attributes.color.array, o * 3); o += g.attributes.position.count; g.dispose(); }
+  const out = new THREE.BufferGeometry(); out.setAttribute("position", new THREE.BufferAttribute(pos, 3)); out.setAttribute("normal", new THREE.BufferAttribute(nor, 3)); out.setAttribute("color", new THREE.BufferAttribute(cc, 3));
+  out.userData.vc = true; return out;
+}
+// small plants for the farm and garden (not counted as building pieces)
+function plantGeo(THREE, n) {
+  const col = /oat|barley|flax/.test(n) ? 0xc9b25a : /seed/.test(n) ? 0x6f8f3a : /berry|bush/.test(n) ? 0x3f6b2e : 0x5c8f34;
+  if (/beech|birch|oak|fir|pine/.test(n)) { const g = new THREE.ConeGeometry(.9, 2.6, 7); g.translate(0, 2.3, 0); const t = new THREE.CylinderGeometry(.12, .15, 1.2, 6); t.translate(0, .6, 0); return [[t, 0x5a4330], [g, 0x3f6b2e]]; }
+  if (/bush|berry/.test(n)) { const g = new THREE.SphereGeometry(.55, 8, 6); g.translate(0, .45, 0); return [[g, col]]; }
+  const g = new THREE.ConeGeometry(.18, /seed/.test(n) ? .3 : .7, 5); g.translate(0, /seed/.test(n) ? .15 : .35, 0); return [[g, col]];
+}
+
+// several [geometry, colour] parts -> one geometry with colours
+function mergeColored(THREE, list) {
+  const col = new THREE.Color(); let len = 0; const gs2 = list.map(([g, c]) => { g = g.index ? g.toNonIndexed() : g; len += g.attributes.position.count; return [g, c]; });
+  const pos = new Float32Array(len * 3), nor = new Float32Array(len * 3), cc = new Float32Array(len * 3); let o = 0;
+  for (const [g, c] of gs2) { const n2 = g.attributes.position.count; pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); col.setHex(c);
+    for (let i = 0; i < n2; i++) { cc[(o + i) * 3] = col.r; cc[(o + i) * 3 + 1] = col.g; cc[(o + i) * 3 + 2] = col.b; } o += n2; }
+  const out = new THREE.BufferGeometry(); out.setAttribute("position", new THREE.BufferAttribute(pos, 3)); out.setAttribute("normal", new THREE.BufferAttribute(nor, 3)); out.setAttribute("color", new THREE.BufferAttribute(cc, 3)); return out;
+}
+// the ground's look: biome colour, grass patches, bare rock on steep slopes, sand at the shore,
+// and the paths, fields and paving you made (Wall Live 2.1.3 sends those, 1 m squares)
+function decodePaint(p) {
+  if (!p || !p.rle) return null;
+  if (decodePaint.c && decodePaint.c.src === p.rle) return decodePaint.c;
+  const out = new Uint8Array(p.n * p.n), re = /(\d+)([.dcp])/g; let i = 0, m;
+  while ((m = re.exec(p.rle))) { const v = m[2] === "d" ? 1 : m[2] === "c" ? 2 : m[2] === "p" ? 3 : 0; if (v) out.fill(v, i, i + +m[1]); i += +m[1]; }
+  return (decodePaint.c = { src: p.rle, n: p.n, g: out });
+}
+function groundTexture(THREE, data, renderer, o) {
+  const { gAt, gn, size, water } = o, T = Math.min(1024, Math.max(256, Math.ceil(size / .5)));
+  const cv = document.createElement("canvas"); cv.width = cv.height = T; const cx = cv.getContext("2d"), id = cx.createImageData(T, T), px = id.data;
+  const hAt = (u, v) => { const f = gn - 1, x = Math.max(0, Math.min(f, u)), y = Math.max(0, Math.min(f, v)), i = Math.min(f - 1, Math.floor(x)), j = Math.min(f - 1, Math.floor(y)), tx = x - i, ty = y - j;
+    return (gAt(i, j) * (1 - tx) + gAt(i + 1, j) * tx) * (1 - ty) + (gAt(i, j + 1) * (1 - tx) + gAt(i + 1, j + 1) * tx) * ty; };
+  const hash = (x, y) => { const h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return h - Math.floor(h); };
+  const vnoise = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+    return (hash(xi, yi) * (1 - u) + hash(xi + 1, yi) * u) * (1 - v) + (hash(xi, yi + 1) * (1 - u) + hash(xi + 1, yi + 1) * u) * v; };
+  const BIO = { Meadows: [74, 100, 40], "Black Forest": [48, 68, 34], Swamp: [66, 60, 40], Mountain: [178, 184, 192], Plains: [150, 136, 72], Mistlands: [58, 64, 66], Ashlands: [62, 44, 37], "Deep North": [200, 208, 214], Ocean: [170, 156, 110] };
+  const paint = decodePaint(data.paint), ph = paint ? (paint.n - 1) / 2 : 0, cell = size / (gn - 1), bcache = new Map();
+  for (let py = 0; py < T; py++) for (let qx = 0; qx < T; qx++) {
+    const u = qx / (T - 1) * (gn - 1), v = py / (T - 1) * (gn - 1), x = -size / 2 + qx / (T - 1) * size, z = size / 2 - py / (T - 1) * size;
+    const h = hAt(u, v), sl = Math.hypot(hAt(u + .2, v) - hAt(u - .2, v), hAt(u, v + .2) - hAt(u, v - .2)) / (.4 * cell);
+    const bk = Math.round(x / 8) + "," + Math.round(z / 8); let bio = bcache.get(bk);
+    if (bio === undefined) { bio = BIO[biomeAt(data.x0 + x, data.z0 + z)] || BIO.Meadows; bcache.set(bk, bio); }
+    const n1 = vnoise(x * .08, z * .08), n2 = vnoise(x * .6, z * .6), n3 = hash(Math.floor(x * 2), Math.floor(z * 2));
+    let c = [bio[0] * (.86 + n1 * .22), bio[1] * (.86 + n1 * .26 + (n2 - .5) * .08), bio[2] * (.85 + n1 * .2)];
+    const rock = Math.max(0, Math.min(1, (sl - .65) / .5));
+    if (rock > 0) { const rc = [96 + n2 * 18, 93 + n2 * 16, 88 + n2 * 14]; c = c.map((a, k) => a * (1 - rock) + rc[k] * rock); }
+    if (h < water + .9) { const t = Math.max(0, Math.min(1, (water + .9 - h) / .9)), sd = h < water ? [104, 96, 70] : [176, 162, 114]; c = c.map((a, k) => a * (1 - t) + sd[k] * t); }
+    if (paint) {
+      const i = Math.round(x) + ph, j = Math.round(z) + ph;
+      const pv = i >= 0 && j >= 0 && i < paint.n && j < paint.n ? paint.g[j * paint.n + i] : 0;
+      if (pv === 1) c = [92 + n2 * 20, 70 + n2 * 14, 46 + n2 * 9];                                   // dirt path
+      else if (pv === 2) { const f = (Math.floor(x * 2.5) & 1) ? .82 : 1; c = [76 * f + n3 * 8, 54 * f + n3 * 6, 36 * f + n3 * 4]; }  // cultivated rows
+      else if (pv === 3) { const gx = x - Math.floor(x), gz = z - Math.floor(z), line = gx < .07 || gz < .07; c = line ? [70, 68, 64] : [112 + n3 * 16, 109 + n3 * 16, 102 + n3 * 14]; } // paving
+    }
+    const k = (py * T + qx) * 4; px[k] = c[0]; px[k + 1] = c[1]; px[k + 2] = c[2]; px[k + 3] = 255;
+  }
+  cx.putImageData(id, 0, 0);
+  const tex = new THREE.CanvasTexture(cv); tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  return tex;
+}
 function partGeo(THREE, sh, out) {
   const b = sh.b, s = sh.s || []; out = out || {}; out.R = new THREE.Matrix4();
+  if (s.length < 6) { const mg = modelGeo(THREE, sh); if (mg) return mg; }
   const box = () => { out.R = new THREE.Matrix4(); const g = new THREE.BoxGeometry(Math.max(.06, b[3] - b[0]), Math.max(.06, b[4] - b[1]), Math.max(.06, b[5] - b[2]));
     g.translate((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, -(b[2] + b[5]) / 2); return g; };
   // roofs (no snap points sent): a sloped slab across the box, low at the back (-z) and high at the front (+z)
@@ -1597,7 +1757,9 @@ function buildBase(keepCam) {
     col[i*3] = base[0]; col[i*3+1] = base[1]; col[i*3+2] = base[2];
   }
   g.setAttribute("color", new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
-  const ground = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true })); ground.receiveShadow = true; scene.add(ground);
+  const ground = new THREE.Mesh(g, spawnOn ? new THREE.MeshLambertMaterial({ vertexColors: true })
+    : new THREE.MeshLambertMaterial({ map: groundTexture(THREE, data, renderer, { gAt, gn, gs, size, water }) }));
+  ground.receiveShadow = true; scene.add(ground);
   if (G.some(h => h < water)) { const sea = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshLambertMaterial({ color: 0x2d6a8e, transparent: true, opacity: .7 }));
     sea.rotation.x = -Math.PI / 2; sea.position.y = water; scene.add(sea); }
   const key = $("#spawnKey"); key.hidden = !B3.spawn;
@@ -1611,8 +1773,10 @@ function buildBase(keepCam) {
   for (const [si, list] of Object.entries(byShape)) {
     const sh = data.shapes[si]; if (!sh) continue;
     const look = partLook(sh.n);
-    const mat = new THREE.MeshLambertMaterial({ color: look.c, emissive: look.e || 0, transparent: !!look.t, opacity: look.t || 1 });
-    const im = new THREE.InstancedMesh(partGeo(THREE, sh), mat, list.length);
+    const geo = partGeo(THREE, sh), vc = !!geo.userData.vc;
+    const mat = new THREE.MeshLambertMaterial({ color: vc ? 0xffffff : look.c, vertexColors: vc, emissive: vc ? (look.fire ? 0x2a1206 : /portal/.test(sh.n) ? 0x1a0830 : 0) : look.e || 0, transparent: !!look.t && !vc, opacity: vc ? 1 : look.t || 1 });
+    mat.userData.vc = vc;
+    const im = new THREE.InstancedMesh(geo, mat, list.length);
     list.forEach((p, k) => {
       if (p.length === 5) q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[4] * Math.PI / 180);
       else q.set(-p[4], -p[5], p[6], p[7]);
@@ -1621,6 +1785,15 @@ function buildBase(keepCam) {
     });
     im.castShadow = !look.t; im.receiveShadow = true; im.userData = { name: sh.n, roof: /roof/.test(sh.n), fire: !!look.fire, idx: list.map(p => idxOf.get(p)) };
     scene.add(im); meshes.push(im);
+  }
+  // plants: farm crops, saplings, bushes and small trees (soft: you can walk through them)
+  const plantKinds = {};
+  for (const p of data.parts) { const sh = data.shapes[p[0]]; if (!sh || !NOT_BUILDING.test(sh.n) || /^pickable_/.test(sh.n) || Math.hypot(p[1], p[3]) > range) continue; (plantKinds[sh.n] = plantKinds[sh.n] || []).push(p); }
+  for (const [pn, list] of Object.entries(plantKinds)) {
+    const geo = mergeColored(THREE, plantGeo(THREE, pn)), im = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }), list.length);
+    list.forEach((p, k) => { const sc = .85 + ((p[1] * 7.3 + p[3] * 3.1) % 1 + 1) % 1 * .3; q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (p[1] * 13 + p[3]) % 6.28);
+      m4.compose(new THREE.Vector3(p[1], p[2], -p[3]), q, new THREE.Vector3(sc, sc, sc)); im.setMatrixAt(k, m4); });
+    im.castShadow = true; im.receiveShadow = true; im.userData = { soft: true, plant: pn }; scene.add(im);
   }
   const fireLights = lights.map(v => { const l = new THREE.PointLight(0xff8a3c, 0, 14, 2); l.position.copy(v); scene.add(l); return l; });
   // look at the middle of the buildings
@@ -1871,7 +2044,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-24-1140";
+const BUILD = "2026-10-24-1215";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
@@ -2102,8 +2275,8 @@ function applyIntegrity() {
   const THREE = B3.THREE, mode = B3.integrity, { hp, sup, est, real } = integrityMaps(), c = new THREE.Color();
   for (const m of B3.meshes) {
     const mt = m.material; if (mt.userData.col === undefined) mt.userData.col = mt.color.getHex();
-    if (!mode) { if (m.instanceColor) { m.instanceColor = null; mt.color.setHex(mt.userData.col); mt.needsUpdate = true; } continue; }
-    mt.color.setHex(0xffffff);
+    if (!mode) { if (m.instanceColor) { m.instanceColor = null; mt.color.setHex(mt.userData.col); mt.vertexColors = !!mt.userData.vc; mt.needsUpdate = true; } continue; }
+    mt.color.setHex(0xffffff); if (mt.vertexColors) { mt.vertexColors = false; mt.needsUpdate = true; }
     m.userData.idx.forEach((i, k) => {
       let col;
       if (mode === "sup") col = sup.has(i) ? supColor(sup.get(i)) : 0x8d8a86;   // grey: support unknown
@@ -2141,7 +2314,7 @@ function baseXray(signs) {
   if (!B3.r || !B3.meshes) return;
   const on = !!B3.xr;
   for (const m of B3.meshes) {
-    const mt = m.material; if (mt.userData.op === undefined) mt.userData = { op: mt.opacity, tr: mt.transparent };
+    const mt = m.material; if (mt.userData.op === undefined) { mt.userData.op = mt.opacity; mt.userData.tr = mt.transparent; }
     mt.transparent = on || mt.userData.tr; mt.opacity = on ? Math.min(mt.userData.op, .16) : mt.userData.op; mt.depthWrite = !on; mt.needsUpdate = true;
   }
   for (const c of B3.chests || []) c.visible = on && B3.xr.has(c.userData.sign);
@@ -2469,6 +2642,7 @@ const NOTES = [
     "<b>Base in 3D</b>: Support and Damage are now separate views. Hide roofs, Spin and Full screen moved under <b>More</b>.",
     "<b>Support view</b> uses the game's own support rule, with the same blue / green / yellow / red as the building colours in game.",
     "This <b>What's new</b> page.",
+    "<b>3D base looks more real</b>: the ground has grass patches, bare rock on steep slopes, sand at the shore and (with Wall Live 2.1.3) your paths, fields and paving. Chests, signs, torches, portals, beds, tables, chairs, rugs, the windmill, carts, smelters, forges, banners and more now have proper shapes, and crops, saplings and bushes show up.",
     "<b>Support from the game</b>: the 3D base now shows the support value the game itself saved for each piece (hover a piece to see it). Pieces nobody has been near lately are still worked out.",
     "<b>Real ground</b>: hoe and pickaxe changes are now part of the 3D base's ground.",
     "<b>Map: Pins tab</b> replaces Signs. It lists your cartography-table pins: search them, click one to find it on the map." ] },
