@@ -1944,7 +1944,9 @@ function buildBase(keepCam) {
   }
   // natural trees, bushes and rocks (Wall Live 2.1.4)
   const vegBy = {};
-  for (const v of data.veg || []) { const [k, x, y, z] = v; if (Math.hypot(x, z) > range) continue; (vegBy[k] = vegBy[k] || []).push(v); }
+  let vegList = data.veg || [];
+  if (vegList.length && typeof vegList[0] === "string") { const t = []; for (let i = 0; i + 3 < vegList.length; i += 4) t.push(vegList.slice(i, i + 4)); vegList = t; }   // 2.1.4 sent one flat list
+  for (const v of vegList) { const [k, x, y, z] = v; if (Math.hypot(x, z) > range) continue; (vegBy[k] = vegBy[k] || []).push(v); }
   for (const [k, list] of Object.entries(vegBy)) {
     const geo = mergeColored(THREE, treeParts(THREE, k, 1)), im = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }), list.length);
     list.forEach(([, x, y, z], i) => { const hsh = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1, sc = (k === "r" ? .7 + hsh * 1.6 : k === "s" ? .7 + hsh * .6 : .75 + hsh * .5);
