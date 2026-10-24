@@ -301,6 +301,7 @@ body.tv .tvbar{display:flex}
 .chatlog{max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:4px 2px 10px}
 .cmsg{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:baseline;padding:6px 10px;border-radius:10px;background:var(--bg2)}
 .cmsg.web{border-left:3px solid var(--ember)} .cmsg.game{border-left:3px solid #6fd38f}
+.cmsg.raid{box-shadow:inset 0 0 0 1px #c7291f;background:rgba(199,41,31,.14)}
 .cmsg b{font:800 14.5px var(--display);letter-spacing:.03em} .cmsg span{overflow-wrap:anywhere} .cmsg i{font-style:normal;color:var(--muted);font-size:12.5px;white-space:nowrap}
 .chatform{display:grid;grid-template-columns:150px 1fr 170px auto;gap:8px}
 .chatform input{font:inherit;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg2);color:var(--fg);min-width:0}
@@ -2179,7 +2180,10 @@ $("#hornBtn").addEventListener("click", () => { HORN = !HORN; try { localStorage
 // browsers only allow sound after a click on the page, so wake the audio on the first click anywhere
 addEventListener("pointerdown", () => { if (HORN) audio(); }, { once: true });
 paintHorn();
+let RAIDFAST = null;
 function raidAlert(e) {
+  if (raidAlert.last === e.m && Date.now() - raidAlert.at < 15 * 60000) return;   // already sounded for this raid
+  raidAlert.last = e.m; raidAlert.at = Date.now();
   if (HORN) playHorn();
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const old = $("#raidFlash"); if (old) old.remove();
@@ -2191,6 +2195,7 @@ function raidAlert(e) {
 function drawRaidBar() {
   const ev = (LAST_RAW && LAST_RAW.events) || [], el = $("#raidBar");
   let last = null; for (const e of ev) if (e.k === "raid" || e.k === "raidend") last = e;
+  if (RAIDFAST && (!last || RAIDFAST.t > new Date(last.t).getTime())) last = { k: RAIDFAST.end ? "raidend" : "raid", m: RAIDFAST.m, t: new Date(RAIDFAST.t).toISOString() };
   const live = last && last.k === "raid" && Date.now() - new Date(last.t) < 20 * 60000;
   el.hidden = !live;
   if (live) el.innerHTML = `⚔ RAID IN PROGRESS <span>${esc(last.m)} · started ${ago(new Date(last.t))}</span>`;
@@ -2198,7 +2203,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-24-1320";
+const BUILD = "2026-10-24-1450";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
@@ -2243,11 +2248,16 @@ async function loadChat() {
     const r = await fetch(RELAY + "/log", { cache: "no-store" }); if (!r.ok) throw 0;
     const d = await r.json(), list = (d.msgs || []).slice(-50), el = $("#chatLog");
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-    el.innerHTML = list.length ? list.map(m => `<div class="cmsg ${m.from === "web" ? "web" : "game"}"><b>${m.from === "web" ? "🌐" : "🎮"} ${esc(m.n)}</b><span>${esc(m.t)}</span><i title="${esc(new Date(m.at).toLocaleString())}">${ago(new Date(m.at))}</i></div>`).join("")
+    el.innerHTML = list.length ? list.map(m => `<div class="cmsg ${m.from === "web" ? "web" : "game"}${m.n === "Raid alert" ? " raid" : ""}"><b>${m.from === "web" ? "🌐" : "🎮"} ${esc(m.n)}</b><span>${esc(m.t)}</span><i title="${esc(new Date(m.at).toLocaleString())}">${ago(new Date(m.at))}</i></div>`).join("")
       : `<p class="empty">No messages yet. Say hi!</p>`;
     if (atBottom || chatSeen === null) el.scrollTop = el.scrollHeight;
     const newest = list.length ? list[list.length - 1].at : 0;
     if (chatSeen !== null && newest > chatSeen && document.body.dataset.tab !== "live") $("#liveDot").hidden = false;
+    // raid alerts come through the relay within seconds (Wall Live 2.1.7): sound the horn now
+    if (chatSeen !== null) for (const m of list.filter(m => m.at > chatSeen && m.from === "game" && m.n === "Raid alert")) {
+      if (/ is over$/.test(m.t)) RAIDFAST = { end: true, m: m.t, t: m.at }; else { RAIDFAST = { m: m.t, t: m.at }; raidAlert({ m: m.t }); }
+      drawRaidBar();
+    }
     if (chatSeen !== null && newest > chatSeen) for (const m of list.filter(m => m.at > chatSeen && m.from === "game").slice(-2)) toast({ k: "join", m: `${m.n}: ${m.t}` });
     chatSeen = newest;
   } catch (e) { $("#chatLog").innerHTML = `<p class="empty">Chat is offline right now.</p>`; }
@@ -2797,6 +2807,7 @@ const NOTES = [
     "<b>Base in 3D</b>: Support and Damage are now separate views. Hide roofs, Spin and Full screen moved under <b>More</b>.",
     "<b>Support view</b> uses the game's own support rule, with the same blue / green / yellow / red as the building colours in game.",
     "This <b>What's new</b> page.",
+    "<b>Faster raid horn</b>: with Wall Live 2.1.7 a raid sounds the horn within about 10 seconds (it comes through the chat relay), and the raid shows in the chat too.",
     "<b>Server tab</b>: server health (CPU, memory, frames per second, how long saves take, disk space) and Start / Stop / Restart with the admin password (players get a 30 s warning and the world is saved). Backups stay with the game's own folder backups.",
     "<b>More detail in 3D</b>: wood, roofs and stone have textures (planks, thatch, shingles, stone blocks, marble). Ridge caps and roof corners have their real shape. Stone portals are a ring of stones. Bushes are their real size, and with Wall Live 2.1.4 the trees, bushes and rocks around the base show up too. The ground has finer grass, flowers, ploughed rows and stone slabs.",
     "<b>3D base looks more real</b>: the ground has grass patches, bare rock on steep slopes, sand at the shore and (with Wall Live 2.1.3) your paths, fields and paving. Chests, signs, torches, portals, beds, tables, chairs, rugs, the windmill, carts, smelters, forges, banners and more now have proper shapes, and crops, saplings and bushes show up.",
