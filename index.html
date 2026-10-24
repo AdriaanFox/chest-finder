@@ -444,7 +444,7 @@ body.tv .tvbar{display:flex}
 
 
   <section id="srvSec" data-tab="server">
-    <p class="label">SERVER · HEALTH, START &amp; STOP, BACKUPS</p>
+    <p class="label">SERVER · HEALTH, START &amp; STOP</p>
     <div class="panel srvpanel">
       <div class="srvhead"><span class="srvstate" id="srvState"><i></i><b>Checking…</b></span><span class="note" id="srvAge"></span></div>
       <div class="srvgrid" id="srvGrid"></div>
@@ -453,14 +453,10 @@ body.tv .tvbar{display:flex}
         <button class="tab" type="button" data-cmd="start">▶ Start</button>
         <button class="tab" type="button" data-cmd="restart">↻ Restart</button>
         <button class="tab" type="button" data-cmd="stop">■ Stop</button>
-        <button class="tab" type="button" data-cmd="backup">💾 Back up now</button>
       </div>
-      <p class="note" id="srvNote">Stop and Restart warn everyone in game and wait 30 seconds, then the server saves the world and shuts down. Nothing is ever forced.</p>
+      <p class="note" id="srvNote">Stop and Restart warn everyone in game and wait 30 seconds, then the server saves the world and shuts down. Nothing is ever forced. The game makes its own world backups.</p>
     </div>
-    <p class="label" style="margin-top:18px">BACKUPS · RESTORE POINTS</p>
-    <div class="panel"><div class="bklist" id="bkList"><p class="empty">Waiting for the server agent…</p></div>
-      <p class="note">A backup is made automatically every few hours and after every stop or restart. To restore one, stop the server first. The world you have now is kept as a copy before restoring.</p></div>
-  </section>
+</section>
 
   <section id="chatSec" data-tab="live">
     <p class="label">CHAT · TALK TO THE PEOPLE IN GAME</p>
@@ -2202,7 +2198,7 @@ function drawRaidBar() {
 
 
 // ---------- keep the page itself up to date (browsers can hold on to an old copy of the site) ----------
-const BUILD = "2026-10-24-1300";
+const BUILD = "2026-10-24-1320";
 async function checkBuild() {
   try {
     const t = await fetch("index.html?b=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "");
@@ -2801,7 +2797,7 @@ const NOTES = [
     "<b>Base in 3D</b>: Support and Damage are now separate views. Hide roofs, Spin and Full screen moved under <b>More</b>.",
     "<b>Support view</b> uses the game's own support rule, with the same blue / green / yellow / red as the building colours in game.",
     "This <b>What's new</b> page.",
-    "<b>Server tab</b>: server health (CPU, memory, frames per second, how long saves take, disk space), Start / Stop / Restart with the admin password (players get a 30 s warning and the world is saved), automatic backups and restore points.",
+    "<b>Server tab</b>: server health (CPU, memory, frames per second, how long saves take, disk space) and Start / Stop / Restart with the admin password (players get a 30 s warning and the world is saved). Backups stay with the game's own folder backups.",
     "<b>More detail in 3D</b>: wood, roofs and stone have textures (planks, thatch, shingles, stone blocks, marble). Ridge caps and roof corners have their real shape. Stone portals are a ring of stones. Bushes are their real size, and with Wall Live 2.1.4 the trees, bushes and rocks around the base show up too. The ground has finer grass, flowers, ploughed rows and stone slabs.",
     "<b>3D base looks more real</b>: the ground has grass patches, bare rock on steep slopes, sand at the shore and (with Wall Live 2.1.3) your paths, fields and paving. Chests, signs, torches, portals, beds, tables, chairs, rugs, the windmill, carts, smelters, forges, banners and more now have proper shapes, and crops, saplings and bushes show up.",
     "<b>Support from the game</b>: the 3D base now shows the support value the game itself saved for each piece (hover a piece to see it). Pieces nobody has been near lately are still worked out.",
@@ -2875,19 +2871,13 @@ function drawSrvPanel() {
   grid.innerHTML = tiles.join("") || `<p class="empty">Health shows once the Kaaphalla agent runs on the server PC.</p>`;
   const running = st && st.running, busy = st && st.busy;
   $("[data-cmd=start]").disabled = !st || running || busy; $("[data-cmd=stop]").disabled = !st || !running || busy;
-  $("[data-cmd=restart]").disabled = !st || !running || busy; $("[data-cmd=backup]").disabled = !st || busy;
+  $("[data-cmd=restart]").disabled = !st || !running || busy;
   // what happened to the last command
   const lc = st && st.lastCmd;
   if (SRV.pending && lc && lc.cmd === SRV.pending && new Date(lc.at).getTime() > SRV.sentAt - 60000) {
     $("#srvNote").textContent = lc.done ? `${lc.cmd}: ${lc.result}` : `${lc.cmd}: working on it…`; if (lc.done) SRV.pending = null;
   }
-  // backups
-  const bk = (st && st.backups) || [];
-  $("#bkList").innerHTML = bk.length ? bk.map(b => `<div class="bkrow"><b>${esc(bkLabel(b))}</b><span>${b.mb} MB</span><span>${agoTxt(new Date(b.at))}</span><button class="tab" type="button" data-restore="${esc(b.name)}" ${running || busy ? "disabled title='Stop the server first'" : ""}>Restore</button></div>`).join("")
-    : `<p class="empty">${st ? "No backups yet." : "Waiting for the server agent…"}</p>`;
 }
-function bkLabel(b) { const d = new Date(b.at), why = (b.name.split("_").slice(2).join(" ") || "backup").replace(/-/g, " ");
-  return (isNaN(d) ? b.name : d.toLocaleDateString("en-ZA", { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })) + " · " + why; }
 async function sendAdmin(cmd) {
   const pass = $("#admPass").value; if (!pass) { $("#srvNote").textContent = "Type the admin password first."; $("#admPass").focus(); return; }
   try { localStorage.setItem("admPass", pass); } catch (e) {}
@@ -2908,8 +2898,6 @@ function armed(btn, label, go) {
 }
 document.querySelector(".srvctl").addEventListener("click", e => { const b = e.target.closest("[data-cmd]"); if (!b || b.disabled) return;
   const c = b.dataset.cmd; if (c === "stop" || c === "restart") armed(b, c === "stop" ? "Tap again to stop" : "Tap again to restart", () => sendAdmin(c)); else sendAdmin(c); });
-$("#bkList").addEventListener("click", e => { const b = e.target.closest("[data-restore]"); if (!b || b.disabled) return;
-  armed(b, "Tap again: replace the world", () => sendAdmin("restore:" + b.dataset.restore)); });
 loadSrvPanel(); setInterval(() => { if (!document.hidden) loadSrvPanel(); }, 30000);
 </script>
 </body>
